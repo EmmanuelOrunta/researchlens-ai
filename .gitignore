@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Environment variables / secrets
+.env
+
+# Database (each teammate's local data - don't commit this)
+database/*.db
+
+# Uploaded PDFs (user content - don't commit this)
+uploads/*
+!uploads/.gitkeep
+
+# OS/editor junk
+.DS_Store
+.vscode/settings.json

@@ -1,0 +1,47 @@
+{% extends "base_auth.html" %}
+{% block title %}Create account · ResearchLens AI{% endblock %}
+{% block auth_content %}
+  <h1 class="auth-heading">Create your account</h1>
+  <p class="auth-subtext">Start organising your research literature.</p>
+
+  <form method="post" novalidate>
+    <div class="field">
+      <label for="name">Full name</label>
+      <input type="text" id="name" name="name" value="{{ form.name or '' }}"
+             class="{{ 'has-error' if errors.name else '' }}">
+      {% if errors.name %}<div class="field-error">{{ errors.name }}</div>{% endif %}
+    </div>
+
+    <div class="field">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" value="{{ form.email or '' }}"
+             class="{{ 'has-error' if errors.email else '' }}">
+      {% if errors.email %}<div class="field-error">{{ errors.email }}</div>{% endif %}
+    </div>
+
+    <div class="field">
+      <label for="password">Password</label>
+      <div class="input-with-action">
+        <input type="password" id="password" name="password"
+               class="{{ 'has-error' if errors.password else '' }}">
+        <button type="button" class="toggle-password" data-target="password">Show</button>
+      </div>
+      <div class="field-hint">At least 8 characters, with an uppercase letter, a lowercase letter, a number, and a special character.</div>
+      {% if errors.password %}<div class="field-error">{{ errors.password }}</div>{% endif %}
+    </div>
+
+    <div class="field">
+      <label for="confirm_password">Confirm password</label>
+      <div class="input-with-action">
+        <input type="password" id="confirm_password" name="confirm_password"
+               class="{{ 'has-error' if errors.confirm_password else '' }}">
+        <button type="button" class="toggle-password" data-target="confirm_password">Show</button>
+      </div>
+      {% if errors.confirm_password %}<div class="field-error">{{ errors.confirm_password }}</div>{% endif %}
+    </div>
+
+    <button type="submit" class="btn">Create Account</button>
+  </form>
+
+  <p class="auth-switch">Already have an account? <a href="{{ url_for('auth.login') }}">Log in</a></p>
+{% endblock %}

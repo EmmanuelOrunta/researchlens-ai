@@ -1,0 +1,61 @@
+{% extends "base_app.html" %}
+{% block title %}{{ project.title }} · ResearchLens AI{% endblock %}
+{% block content %}
+  <a href="{{ url_for('main.dashboard') }}" class="back-link">← Back to Dashboard</a>
+
+  <h1 class="page-title">{{ project.title }}</h1>
+  <p class="page-subtitle">{{ project.research_field or "General" }} &middot; {{ project.keywords or "No keywords yet" }}</p>
+
+  <div class="detail-grid">
+    <div class="detail-card">
+      <div class="detail-card-header">
+        <h2>🎯 Research Question</h2>
+      </div>
+      {% if project.research_question %}
+        <p class="detail-card-body">{{ project.research_question }}</p>
+      {% else %}
+        <p class="detail-card-empty">No research question added yet.</p>
+      {% endif %}
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-card-header">
+        <h2>📁 Saved Papers</h2>
+        <span class="badge-muted">Soon</span>
+      </div>
+      <p class="detail-card-empty">Paper search and saving arrives in Sprint 2.</p>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-card-header">
+        <h2>🧠 AI Analyses</h2>
+        <span class="badge-muted">Soon</span>
+      </div>
+      <p class="detail-card-empty">AI-generated paper summaries arrive in Sprint 3.</p>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-card-header">
+        <h2>📋 Literature Matrix</h2>
+        <span class="badge-muted">Soon</span>
+      </div>
+      <p class="detail-card-empty">A comparison table across your saved papers arrives in Sprint 3.</p>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-card-header">
+        <h2>📝 Notes</h2>
+        <span class="badge-muted">Soon</span>
+      </div>
+      <p class="detail-card-empty">Free-form notes on papers arrive alongside paper saving.</p>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-card-header">
+        <h2>🧭 Research-Gap Analysis</h2>
+        <span class="badge-muted">Soon</span>
+      </div>
+      <p class="detail-card-empty">Potential research-gap detection arrives in Sprint 4.</p>
+    </div>
+  </div>
+{% endblock %}

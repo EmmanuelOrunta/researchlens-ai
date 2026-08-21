@@ -1,0 +1,351 @@
+/* static/css/style.css
+   ResearchLens AI - hand-written CSS, no framework.
+   Everything is driven off the CSS variables below, so the whole app's color scheme
+   can be changed by editing this one block. */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --color-primary: #4F46E5;
+  --color-primary-dark: #4338CA;
+  --color-bg: #F7F8FC;
+  --color-sidebar-bg: #1E2A4A;
+  --color-sidebar-text: #E8ECF7;
+  --color-text: #1E2A4A;
+  --color-text-muted: #6B7280;
+  --color-border: #E5E7F0;
+  --color-danger: #DC2626;
+  --color-danger-bg: #FEF2F2;
+  --color-success: #047857;
+  --color-success-bg: #ECFDF5;
+  --radius: 12px;
+  --shadow-card: 0 2px 10px rgba(30, 42, 74, 0.05);
+  --shadow-panel: 0 10px 40px rgba(30, 42, 74, 0.08);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+a { color: inherit; }
+
+/* ---------- Shared form elements (used on both auth pages and app pages) ---------- */
+
+.field { margin-bottom: 1.1rem; }
+.field label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.88rem;
+  margin-bottom: 0.4rem;
+}
+.field input,
+.field textarea {
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  font-size: 1rem;
+  font-family: inherit;
+  background: white;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.field textarea { resize: vertical; }
+.field input:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+}
+.field input.has-error,
+.field textarea.has-error { border-color: var(--color-danger); }
+.field-hint { font-size: 0.8rem; color: var(--color-text-muted); margin-top: 0.35rem; }
+.field-error { font-size: 0.85rem; color: var(--color-danger); margin-top: 0.35rem; font-weight: 500; }
+
+/* Password field with the Show/Hide button built in */
+.input-with-action {
+  display: flex;
+  align-items: stretch;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: white;
+  overflow: hidden;
+}
+.input-with-action input {
+  border: none;
+  flex: 1;
+  min-width: 0;
+  padding: 0.65rem 0.8rem;
+  font-size: 1rem;
+  font-family: inherit;
+}
+.input-with-action input:focus { outline: none; box-shadow: none; }
+.input-with-action:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+}
+.toggle-password {
+  border: none;
+  border-left: 1px solid var(--color-border);
+  background: #FAFBFE;
+  padding: 0 0.9rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.toggle-password:hover { color: var(--color-primary); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.7rem 1.2rem;
+  border-radius: 8px;
+  border: none;
+  background: var(--color-primary);
+  color: white !important;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.btn:hover { background: var(--color-primary-dark); box-shadow: 0 4px 14px rgba(79, 70, 229, 0.28); }
+.btn-inline { width: auto; }
+.btn-secondary { background: white; color: var(--color-text) !important; border: 1px solid var(--color-border); }
+.btn-secondary:hover { background: var(--color-bg); box-shadow: none; }
+
+.form-narrow { max-width: 560px; }
+.form-actions { display: flex; gap: 0.75rem; margin-top: 0.5rem; }
+
+.flash {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.flash-error { background: var(--color-danger-bg); color: var(--color-danger); border: 1px solid #FCA5A5; }
+.flash-success { background: var(--color-success-bg); color: var(--color-success); border: 1px solid #A7F3D0; }
+
+/* ---------- Auth pages (login / register) ---------- */
+
+.auth-body { background: var(--color-bg); }
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  /* Soft indigo glow on top of the base page color, instead of flat grey - ties the
+     auth pages back to the same primary color used everywhere else in the app. */
+  background:
+    radial-gradient(circle at 12% 15%, rgba(79, 70, 229, 0.16), transparent 42%),
+    radial-gradient(circle at 88% 85%, rgba(99, 102, 241, 0.14), transparent 45%),
+    linear-gradient(160deg, #EEF0FF 0%, #F7F8FC 45%, #E9ECFB 100%);
+}
+.auth-panel {
+  width: 100%;
+  max-width: 440px;
+  background: white;
+  border-radius: 16px;
+  padding: 2.5rem 2.2rem;
+  box-shadow: var(--shadow-panel);
+  border: 1px solid var(--color-border);
+}
+.auth-logo { text-align: center; font-size: 1.3rem; font-weight: 800; margin-bottom: 1.75rem; }
+.auth-heading { font-size: 1.55rem; font-weight: 800; margin: 0 0 0.25rem; }
+.auth-subtext { color: var(--color-text-muted); margin: 0 0 1.6rem; }
+.auth-switch { text-align: center; margin-top: 1.5rem; color: var(--color-text-muted); font-size: 0.92rem; }
+.auth-switch a { color: var(--color-primary); font-weight: 600; text-decoration: none; }
+.auth-switch a:hover { text-decoration: underline; }
+
+/* ---------- App shell (sidebar + main content) ---------- */
+
+.app-shell { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  background: var(--color-sidebar-bg);
+  color: var(--color-sidebar-text);
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem 1rem;
+}
+.sidebar-brand { font-weight: 800; font-size: 1.1rem; margin-bottom: 2rem; padding: 0 0.5rem; }
+.sidebar-nav { flex: 1; }
+.nav-group { margin-bottom: 1.6rem; }
+.nav-group-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgba(232, 236, 247, 0.45);
+  font-weight: 700;
+  margin: 0 0.5rem 0.5rem;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  color: var(--color-sidebar-text);
+  text-decoration: none;
+  font-size: 0.9rem;
+  margin-bottom: 0.15rem;
+}
+a.nav-item:hover { background: rgba(255, 255, 255, 0.08); }
+a.nav-item.active { background: rgba(255, 255, 255, 0.15); font-weight: 600; }
+.nav-item.disabled { color: rgba(232, 236, 247, 0.4); cursor: default; }
+.soon-badge {
+  font-size: 0.62rem;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.sidebar-footer { border-top: 1px solid rgba(255, 255, 255, 0.12); padding-top: 1rem; }
+.sidebar-user { padding: 0 0.5rem; margin-bottom: 0.75rem; }
+.sidebar-user-name { font-weight: 600; font-size: 0.9rem; }
+.sidebar-user-email { font-size: 0.78rem; color: rgba(232, 236, 247, 0.6); }
+.btn-signout {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-family: inherit;
+}
+.btn-signout:hover { background: rgba(255, 255, 255, 0.15); }
+
+.main-content { flex: 1; padding: 2.5rem 3rem; max-width: 1100px; }
+
+.page-title { font-size: 1.9rem; font-weight: 800; margin: 0 0 0.2rem; }
+.page-subtitle { color: var(--color-text-muted); margin: 0 0 1.75rem; }
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+.stat-card {
+  background: white;
+  border-radius: var(--radius);
+  padding: 1.2rem;
+  text-align: center;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+}
+.stat-value { font-size: 1.8rem; font-weight: 800; color: var(--color-primary); }
+.stat-label { color: var(--color-text-muted); font-size: 0.82rem; margin-top: 0.2rem; }
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 2rem 0 1rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.section-header h2 { font-size: 1.1rem; font-weight: 700; margin: 0; }
+
+.project-card {
+  display: block;
+  background: white;
+  border-radius: var(--radius);
+  padding: 1.1rem 1.4rem;
+  border: 1px solid var(--color-border);
+  margin-bottom: 0.75rem;
+  box-shadow: var(--shadow-card);
+}
+.project-title { font-weight: 700; font-size: 1.02rem; }
+.project-question { color: #4B5563; margin: 0.3rem 0; }
+.project-meta { color: #9CA3AF; font-size: 0.82rem; }
+
+/* The dashboard's project cards are <a> links now (clicking one opens the project) */
+a.project-card-link {
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow 0.15s, transform 0.15s, border-color 0.15s;
+}
+a.project-card-link:hover {
+  box-shadow: 0 8px 24px rgba(30, 42, 74, 0.1);
+  border-color: #D9DCEE;
+  transform: translateY(-1px);
+}
+
+.empty-state {
+  background: white;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+/* ---------- Project detail page ---------- */
+
+.back-link {
+  display: inline-block;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+.back-link:hover { color: var(--color-primary); }
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.1rem;
+  margin-top: 1.5rem;
+}
+.detail-card {
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.3rem 1.4rem;
+  box-shadow: var(--shadow-card);
+}
+.detail-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+.detail-card-header h2 { font-size: 1rem; font-weight: 700; margin: 0; }
+.detail-card-body { color: #374151; line-height: 1.55; margin: 0; }
+.detail-card-empty { color: var(--color-text-muted); font-size: 0.9rem; margin: 0; font-style: italic; }
+
+.badge-muted {
+  font-size: 0.68rem;
+  background: #EEF0F6;
+  color: var(--color-text-muted);
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .app-shell { flex-direction: column; }
+  .sidebar { width: 100%; }
+  .main-content { padding: 1.5rem; }
+}

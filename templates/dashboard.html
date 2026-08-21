@@ -1,0 +1,40 @@
+{% extends "base_app.html" %}
+{% block title %}Dashboard · ResearchLens AI{% endblock %}
+{% block content %}
+  <h1 class="page-title">Welcome back, {{ current_user.name.split(' ')[0] }} 👋</h1>
+  <p class="page-subtitle">Here's what's happening in your research workspace.</p>
+
+  <div class="stat-grid">
+    {% for label, value in stats %}
+      <div class="stat-card">
+        <div class="stat-value">{{ value }}</div>
+        <div class="stat-label">{{ label }}</div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="section-header">
+    <h2>Your Research Projects</h2>
+    <a href="{{ url_for('main.new_project') }}" class="btn btn-inline">+ New Research Project</a>
+  </div>
+
+  {% if not projects %}
+    <div class="empty-state">
+      You don't have any research projects yet. Create your first one above to get started.
+    </div>
+  {% else %}
+    {% for p in projects %}
+      <a href="{{ url_for('main.project_detail', project_id=p.id) }}" class="project-card project-card-link">
+        <div class="project-title">{{ p.title }}</div>
+        {% if p.research_question %}<div class="project-question">{{ p.research_question }}</div>{% endif %}
+        <div class="project-meta">{{ p.research_field or "General" }} &middot; {{ p.keywords or "No keywords yet" }}</div>
+      </a>
+    {% endfor %}
+  {% endif %}
+
+  <div class="section-header"><h2>Coming in the next build</h2></div>
+  <p class="page-subtitle">
+    Paper search, AI paper analysis, the literature matrix, Ask Your Literature, and
+    research-gap detection will appear here as we build out the remaining sprints.
+  </p>
+{% endblock %}

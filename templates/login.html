@@ -1,0 +1,29 @@
+{% extends "base_auth.html" %}
+{% block title %}Log in · ResearchLens AI{% endblock %}
+{% block auth_content %}
+  <h1 class="auth-heading">Welcome back</h1>
+  <p class="auth-subtext">Sign in to your research workspace.</p>
+
+  <form method="post" novalidate>
+    <div class="field">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" value="{{ form.email or '' }}"
+             class="{{ 'has-error' if errors.email else '' }}">
+      {% if errors.email %}<div class="field-error">{{ errors.email }}</div>{% endif %}
+    </div>
+
+    <div class="field">
+      <label for="password">Password</label>
+      <div class="input-with-action">
+        <input type="password" id="password" name="password"
+               class="{{ 'has-error' if errors.password else '' }}">
+        <button type="button" class="toggle-password" data-target="password">Show</button>
+      </div>
+      {% if errors.password %}<div class="field-error">{{ errors.password }}</div>{% endif %}
+    </div>
+
+    <button type="submit" class="btn">Log In</button>
+  </form>
+
+  <p class="auth-switch">Don't have an account? <a href="{{ url_for('auth.register') }}">Create one</a></p>
+{% endblock %}

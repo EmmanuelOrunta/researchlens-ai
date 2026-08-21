@@ -1,0 +1,39 @@
+{% extends "base_app.html" %}
+{% block title %}New Project · ResearchLens AI{% endblock %}
+{% block content %}
+  <h1 class="page-title">New Research Project</h1>
+  <p class="page-subtitle">Every research project keeps its own papers, AI analyses and notes.</p>
+
+  <form method="post" novalidate class="form-narrow">
+    <div class="field">
+      <label for="title">Project title</label>
+      <input type="text" id="title" name="title" value="{{ form.title or '' }}"
+             placeholder="e.g. Impact of Generative AI on University Students"
+             class="{{ 'has-error' if errors.title else '' }}">
+      {% if errors.title %}<div class="field-error">{{ errors.title }}</div>{% endif %}
+    </div>
+
+    <div class="field">
+      <label for="research_question">Research question</label>
+      <textarea id="research_question" name="research_question" rows="3"
+                placeholder="e.g. How does generative AI affect student learning outcomes?">{{ form.research_question or '' }}</textarea>
+    </div>
+
+    <div class="field">
+      <label for="research_field">Research field</label>
+      <input type="text" id="research_field" name="research_field" value="{{ form.research_field or '' }}"
+             placeholder="e.g. Education">
+    </div>
+
+    <div class="field">
+      <label for="keywords">Keywords (comma-separated)</label>
+      <input type="text" id="keywords" name="keywords" value="{{ form.keywords or '' }}"
+             placeholder="e.g. Generative AI, ChatGPT, Student Learning">
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-inline">Create Project</button>
+      <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary btn-inline">Cancel</a>
+    </div>
+  </form>
+{% endblock %}
