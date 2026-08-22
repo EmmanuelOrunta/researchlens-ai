@@ -1,0 +1,70 @@
+{% extends "base_app.html" %}
+{% block title %}Add Papers · {{ project.title }}{% endblock %}
+{% block content %}
+  <a href="{{ url_for('main.project_detail', project_id=project.id) }}" class="back-link">← Back to {{ project.title }}</a>
+
+  <h1 class="page-title">Add Papers</h1>
+  <p class="page-subtitle">Search academic sources, or upload a PDF you already have on your computer.</p>
+
+  <form method="get" class="search-form">
+    <input type="text" name="query" value="{{ query }}" class="search-input"
+           placeholder="e.g. generative AI student learning outcomes">
+    <button type="submit" class="btn btn-inline">Search</button>
+  </form>
+
+  {% if search_error %}
+    <div class="flash flash-error">{{ search_error }}</div>
+  {% endif %}
+
+  {% if results is not none %}
+    <div class="section-header"><h2>Results for &ldquo;{{ query }}&rdquo;</h2></div>
+
+    {% if not results %}
+      <div class="empty-state">No papers found for that search. Try different keywords.</div>
+    {% else %}
+      {% for paper in results %}
+        <div class="result-card">
+          <div class="result-title">{{ paper.title }}</div>
+          <div class="result-meta">
+            {{ paper.authors or "Unknown authors" }}{% if paper.year %} &middot; {{ paper.year }}{% endif %}
+          </div>
+          {% if paper.abstract %}
+            <p class="result-abstract">
+              {{ paper.abstract[:320] }}{% if paper.abstract|length > 320 %}…{% endif %}
+            </p>
+          {% endif %}
+          <div class="result-actions">
+            {% if paper.url %}
+              <a href="{{ paper.url }}" target="_blank" rel="noopener" class="btn btn-secondary btn-inline">View Paper</a>
+            {% endif %}
+            <form method="post" action="{{ url_for('papers.save_from_search', project_id=project.id) }}">
+              <input type="hidden" name="external_id" value="{{ paper.external_id or '' }}">
+              <input type="hidden" name="title" value="{{ paper.title }}">
+              <input type="hidden" name="authors" value="{{ paper.authors or '' }}">
+              <input type="hidden" name="year" value="{{ paper.year or '' }}">
+              <input type="hidden" name="abstract" value="{{ paper.abstract or '' }}">
+              <input type="hidden" name="doi" value="{{ paper.doi or '' }}">
+              <input type="hidden" name="url" value="{{ paper.url or '' }}">
+              <input type="hidden" name="query" value="{{ query }}">
+              <button type="submit" class="btn btn-inline">Save to Project</button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endif %}
+
+  <div class="section-header"><h2>Or upload a PDF from your computer</h2></div>
+  <form method="post" action="{{ url_for('papers.upload', project_id=project.id) }}"
+        enctype="multipart/form-data" class="form-narrow">
+    <div class="field">
+      <label for="title">Title (optional - we'll use the file name if left blank)</label>
+      <input type="text" id="title" name="title" placeholder="e.g. Smith et al. 2025 - Generative AI and Learning">
+    </div>
+    <div class="field">
+      <label for="pdf_file">PDF file</label>
+      <input type="file" id="pdf_file" name="pdf_file" accept="application/pdf">
+    </div>
+    <button type="submit" class="btn btn-inline">Upload PDF</button>
+  </form>
+{% endblock %}
