@@ -349,3 +349,68 @@ a.project-card-link:hover {
   .sidebar { width: 100%; }
   .main-content { padding: 1.5rem; }
 }
+
+.detail-card-wide { grid-column: span 2; }
+
+.badge-link {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  text-decoration: none;
+  background: #EEF0FF;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.badge-link:hover { background: #E0E4FF; }
+
+.paper-list { list-style: none; margin: 0; padding: 0; }
+.paper-list-item { padding: 0.75rem 0; border-bottom: 1px solid var(--color-border); }
+.paper-list-item:last-child { border-bottom: none; }
+.paper-list-title { font-weight: 600; font-size: 0.94rem; }
+.paper-list-meta { color: var(--color-text-muted); font-size: 0.82rem; margin: 0.25rem 0 0.4rem; }
+.paper-list-actions { display: flex; align-items: center; gap: 1rem; font-size: 0.82rem; }
+.paper-list-actions a { color: var(--color-primary); text-decoration: none; font-weight: 600; }
+.paper-list-actions a:hover { text-decoration: underline; }
+.paper-remove-form { margin: 0; }
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-danger);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.link-button:hover { text-decoration: underline; }
+
+.search-form { display: flex; gap: 0.6rem; max-width: 640px; margin-bottom: 1rem; }
+.search-input {
+  flex: 1;
+  padding: 0.65rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  font-size: 1rem;
+  font-family: inherit;
+  background: white;
+}
+.search-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+}
+
+.result-card {
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.4rem;
+  margin-bottom: 0.9rem;
+  box-shadow: var(--shadow-card);
+}
+.result-title { font-weight: 700; font-size: 1.02rem; }
+.result-meta { color: var(--color-text-muted); font-size: 0.85rem; margin-top: 0.2rem; }
+.result-abstract { color: #4B5563; margin: 0.6rem 0; line-height: 1.5; font-size: 0.92rem; }
+.result-actions { display: flex; gap: 0.6rem; margin-top: 0.8rem; flex-wrap: wrap; }
+.result-actions form { margin: 0; }
