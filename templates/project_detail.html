@@ -18,12 +18,33 @@
       {% endif %}
     </div>
 
-    <div class="detail-card">
+    <div class="detail-card detail-card-wide">
       <div class="detail-card-header">
-        <h2>📁 Saved Papers</h2>
-        <span class="badge-muted">Soon</span>
+        <h2>📁 Saved Papers ({{ papers|length }})</h2>
+        <a href="{{ url_for('papers.search', project_id=project.id) }}" class="badge-link">+ Add Papers</a>
       </div>
-      <p class="detail-card-empty">Paper search and saving arrives in Sprint 2.</p>
+      {% if not papers %}
+        <p class="detail-card-empty">No papers saved yet. Search academic sources or upload a PDF to get started.</p>
+      {% else %}
+        <ul class="paper-list">
+          {% for paper in papers %}
+            <li class="paper-list-item">
+              <div class="paper-list-title">{{ paper.title }}</div>
+              <div class="paper-list-meta">
+                {{ paper.authors or "Unknown authors" }}{% if paper.year %} &middot; {{ paper.year }}{% endif %}
+                &middot;
+                <span class="badge-muted">{{ "Uploaded PDF" if paper.source == "upload" else "Semantic Scholar" }}</span>
+              </div>
+              <div class="paper-list-actions">
+                {% if paper.url %}<a href="{{ paper.url }}" target="_blank" rel="noopener">View source</a>{% endif %}
+                <form method="post" action="{{ url_for('papers.remove', project_id=project.id, paper_id=paper.id) }}" class="paper-remove-form">
+                  <button type="submit" class="link-button">Remove</button>
+                </form>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
     </div>
 
     <div class="detail-card">
