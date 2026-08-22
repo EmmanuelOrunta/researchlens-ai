@@ -28,6 +28,8 @@ def init_db():
     """Create all database tables if they don't already exist. Called once on app startup."""
     from models.user import User  # noqa: F401
     from models.project import ResearchProject  # noqa: F401
+    from models.paper import Paper  # noqa: F401
+    from models.saved_paper import SavedPaper  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
 
