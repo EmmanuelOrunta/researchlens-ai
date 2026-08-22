@@ -10,6 +10,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 
 from services.database_service import get_session
 from services.project_service import create_project, get_projects_for_user, get_project_for_user
+from services.paper_service import get_saved_papers_for_project, count_saved_papers_for_user
 
 main_bp = Blueprint("main", __name__)
 
@@ -30,12 +31,13 @@ def dashboard():
     db_session = get_session()
     try:
         projects = get_projects_for_user(db_session, user_id)
+        saved_papers_count = count_saved_papers_for_user(db_session, user_id)
     finally:
         db_session.close()
 
     stats = [
         ("Research Projects", len(projects)),
-        ("Saved Papers", 0),
+        ("Saved Papers", saved_papers_count),
         ("Papers Analysed", 0),
         ("Potential Gaps Found", 0),
     ]
@@ -48,6 +50,7 @@ def project_detail(project_id):
     db_session = get_session()
     try:
         project = get_project_for_user(db_session, session["user_id"], project_id)
+        papers = get_saved_papers_for_project(db_session, project_id) if project else []
     finally:
         db_session.close()
 
@@ -56,7 +59,7 @@ def project_detail(project_id):
         # way, show a plain "not found" rather than leaking which case it is.
         abort(404)
 
-    return render_template("project_detail.html", project=project)
+    return render_template("project_detail.html", project=project, papers=papers)
 
 
 @main_bp.route("/projects/new", methods=["GET", "POST"])
