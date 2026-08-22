@@ -16,16 +16,19 @@ from services.database_service import init_db, get_session
 from models.user import User
 from routes.auth_routes import auth_bp
 from routes.main_routes import main_bp
+from routes.papers_routes import papers_bp
 
 load_dotenv()
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY", "dev-secret-key-change-this")
+app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # reject PDF uploads bigger than 20MB
 
 init_db()  # creates database/researchlens.db and its tables the first time this runs
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(main_bp)
+app.register_blueprint(papers_bp)
 
 
 @app.context_processor
