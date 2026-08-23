@@ -1,0 +1,35 @@
+{% extends "base_app.html" %}
+{% block title %}My Papers · ResearchLens AI{% endblock %}
+{% block content %}
+  <h1 class="page-title">My Papers</h1>
+  <p class="page-subtitle">Every paper you've saved, across all of your research projects.</p>
+
+  {% if not entries %}
+    <div class="empty-state">
+      You haven't saved any papers yet. Open a project and click "+ Add Papers" to get started.
+    </div>
+  {% else %}
+    {% for entry in entries %}
+      {% set paper = entry.paper %}
+      <div class="result-card">
+        <div class="result-title">
+          <a href="{{ url_for('papers.paper_detail', paper_id=paper.id) }}">{{ paper.title }}</a>
+        </div>
+        <div class="result-meta">
+          {{ paper.authors or "Unknown authors" }}{% if paper.year %} &middot; {{ paper.year }}{% endif %}
+          &middot;
+          <span class="badge-muted">{{ "Uploaded PDF" if paper.source == "upload" else "Semantic Scholar" }}</span>
+        </div>
+        {% if paper.abstract %}
+          <p class="result-abstract">{{ paper.abstract[:280] }}{% if paper.abstract|length > 280 %}…{% endif %}</p>
+        {% endif %}
+        <div class="paper-projects">
+          Saved in:
+          {% for project in entry.projects %}
+            <a href="{{ url_for('main.project_detail', project_id=project.id) }}" class="badge-link">{{ project.title }}</a>
+          {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endblock %}
