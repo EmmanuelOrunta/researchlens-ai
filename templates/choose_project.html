@@ -1,0 +1,14 @@
+{% extends "base_app.html" %}
+{% block title %}Choose a Project · ResearchLens AI{% endblock %}
+{% block content %}
+  <h1 class="page-title">Which project is this for?</h1>
+  <p class="page-subtitle">Papers you search for and save always belong to a specific research project.</p>
+
+  {% for project in projects %}
+    <a href="{{ url_for('papers.search', project_id=project.id) }}" class="project-card project-card-link">
+      <div class="project-title">{{ project.title }}</div>
+      {% if project.research_question %}<div class="project-question">{{ project.research_question }}</div>{% endif %}
+      <div class="project-meta">{{ project.research_field or "General" }} &middot; {{ project.keywords or "No keywords yet" }}</div>
+    </a>
+  {% endfor %}
+{% endblock %}
