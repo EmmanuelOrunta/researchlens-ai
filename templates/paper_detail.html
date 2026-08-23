@@ -1,0 +1,53 @@
+{% extends "base_app.html" %}
+{% block title %}{{ paper.title }} · ResearchLens AI{% endblock %}
+{% block content %}
+  <a href="{{ url_for('papers.my_papers') }}" class="back-link">← Back to My Papers</a>
+
+  <h1 class="page-title">{{ paper.title }}</h1>
+  <p class="page-subtitle">
+    {{ paper.authors or "Unknown authors" }}{% if paper.year %} &middot; {{ paper.year }}{% endif %}
+    &middot;
+    <span class="badge-muted">{{ "Uploaded PDF" if paper.source == "upload" else "Semantic Scholar" }}</span>
+  </p>
+
+  <div class="result-actions" style="margin-bottom: 1.5rem;">
+    {% if paper.source == "upload" %}
+      <a href="{{ url_for('papers.paper_file', paper_id=paper.id) }}" target="_blank" rel="noopener" class="btn btn-inline">
+        Open PDF
+      </a>
+    {% elif paper.url %}
+      <a href="{{ paper.url }}" target="_blank" rel="noopener" class="btn btn-inline">
+        View Original Source
+      </a>
+    {% endif %}
+  </div>
+
+  {% if paper.abstract %}
+    <div class="detail-card" style="margin-bottom: 1.5rem;">
+      <div class="detail-card-header"><h2>Abstract</h2></div>
+      <p class="detail-card-body">{{ paper.abstract }}</p>
+    </div>
+  {% elif paper.extracted_text %}
+    <div class="detail-card" style="margin-bottom: 1.5rem;">
+      <div class="detail-card-header"><h2>Extracted text (preview)</h2></div>
+      <p class="detail-card-body">
+        {{ paper.extracted_text[:1000] }}{% if paper.extracted_text|length > 1000 %}…{% endif %}
+      </p>
+    </div>
+  {% else %}
+    <p class="detail-card-empty" style="margin-bottom: 1.5rem;">No abstract or extracted text available for this paper.</p>
+  {% endif %}
+
+  <div class="detail-card">
+    <div class="detail-card-header"><h2>Saved in</h2></div>
+    {% if not projects %}
+      <p class="detail-card-empty">Not currently saved to any project.</p>
+    {% else %}
+      {% for project in projects %}
+        <a href="{{ url_for('main.project_detail', project_id=project.id) }}" class="badge-link" style="margin-right: 0.4rem;">
+          {{ project.title }}
+        </a>
+      {% endfor %}
+    {% endif %}
+  </div>
+{% endblock %}
