@@ -17,7 +17,10 @@
   {% endif %}
 
   {% if results is not none %}
-    <div class="section-header"><h2>Results for &ldquo;{{ query }}&rdquo;</h2></div>
+    <div class="section-header">
+      <h2>Results for &ldquo;{{ query }}&rdquo;</h2>
+      {% if source_used %}<span class="badge-muted">via {{ source_used }}</span>{% endif %}
+    </div>
 
     {% if not results %}
       <div class="empty-state">No papers found for that search. Try different keywords.</div>
