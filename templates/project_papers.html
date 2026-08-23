@@ -1,0 +1,36 @@
+{% extends "base_app.html" %}
+{% block title %}Saved Papers · {{ project.title }}{% endblock %}
+{% block content %}
+  <a href="{{ url_for('main.project_detail', project_id=project.id) }}" class="back-link">← Back to {{ project.title }}</a>
+
+  <div class="section-header">
+    <h1 class="page-title" style="margin: 0;">Saved Papers ({{ papers|length }})</h1>
+    <a href="{{ url_for('papers.search', project_id=project.id) }}" class="btn btn-inline">+ Add Papers</a>
+  </div>
+
+  {% if not papers %}
+    <div class="empty-state">No papers saved yet. Search academic sources or upload a PDF to get started.</div>
+  {% else %}
+    {% for paper in papers %}
+      <div class="result-card">
+        <div class="result-title">
+          <a href="{{ url_for('papers.paper_detail', paper_id=paper.id) }}">{{ paper.title }}</a>
+        </div>
+        <div class="result-meta">
+          {{ paper.authors or "Unknown authors" }}{% if paper.year %} &middot; {{ paper.year }}{% endif %}
+          &middot;
+          <span class="badge-muted">{{ "Uploaded PDF" if paper.source == "upload" else "Semantic Scholar" }}</span>
+        </div>
+        {% if paper.abstract %}
+          <p class="result-abstract">{{ paper.abstract[:280] }}{% if paper.abstract|length > 280 %}…{% endif %}</p>
+        {% endif %}
+        <div class="result-actions">
+          <a href="{{ url_for('papers.paper_detail', paper_id=paper.id) }}" class="btn btn-secondary btn-inline">Preview</a>
+          <form method="post" action="{{ url_for('papers.remove', project_id=project.id, paper_id=paper.id) }}">
+            <button type="submit" class="link-button">Remove</button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endblock %}
