@@ -22,8 +22,14 @@
 
         <div class="nav-group">
           <div class="nav-group-label">Library</div>
-          <span class="nav-item disabled">🔍 Search Papers <span class="soon-badge">Soon</span></span>
-          <span class="nav-item disabled">📁 My Papers <span class="soon-badge">Soon</span></span>
+          <a href="{{ url_for('papers.choose_project_for_search') }}"
+             class="nav-item {{ 'active' if request.endpoint in ['papers.search', 'papers.choose_project_for_search'] else '' }}">
+            🔍 Search Papers
+          </a>
+          <a href="{{ url_for('papers.my_papers') }}"
+             class="nav-item {{ 'active' if request.endpoint in ['papers.my_papers', 'papers.paper_detail'] else '' }}">
+            📁 My Papers
+          </a>
         </div>
 
         <div class="nav-group">
