@@ -25,7 +25,7 @@ def search_papers(query: str, limit: int = 10):
     Scholar is down, rate-limited, etc.) - the route checks for that None specifically
     so it can show "couldn't reach Semantic Scholar" instead of a confusing empty list.
     """
-    headers = {}
+    headers = {"User-Agent": "ResearchLensAI-StudentProject (mailto:example@example.com)"}
     api_key = os.environ.get("SEMANTIC_SCHOLAR_API_KEY")
     if api_key:
         headers["x-api-key"] = api_key
@@ -39,7 +39,11 @@ def search_papers(query: str, limit: int = 10):
         )
         response.raise_for_status()
         payload = response.json()
-    except (requests.RequestException, ValueError):
+    except (requests.RequestException, ValueError) as error:
+        # Printing here means the REAL reason (timeout, 429 rate limit, DNS failure,
+        # etc.) shows up in your terminal where `python app.py` is running, instead of
+        # disappearing silently - worth checking there if search keeps failing.
+        print(f"[semantic_scholar_service] search failed: {error}")
         return None
 
     results = []
@@ -60,4 +64,3 @@ def search_papers(query: str, limit: int = 10):
         })
 
     return results
-    
