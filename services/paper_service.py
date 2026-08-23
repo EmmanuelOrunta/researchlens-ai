@@ -100,3 +100,47 @@ def count_saved_papers_for_user(session, user_id: int) -> int:
         .filter(ResearchProject.user_id == user_id)
         .count()
     )
+
+
+def get_projects_for_paper(session, user_id: int, paper_id: int):
+    """
+    Which of this user's projects has this paper saved to it? A paper can belong to
+    more than one project, which is why this returns a list rather than a single one.
+    """
+    return (
+        session.query(ResearchProject)
+        .join(SavedPaper, SavedPaper.project_id == ResearchProject.id)
+        .filter(SavedPaper.paper_id == paper_id, ResearchProject.user_id == user_id)
+        .all()
+    )
+
+
+def user_can_access_paper(session, user_id: int, paper_id: int) -> bool:
+    """
+    True if this paper is saved to at least one of the user's projects. Used before
+    showing a paper's preview or serving its PDF file, so one user can't view another
+    user's uploaded paper just by guessing a paper id in the URL.
+    """
+    return len(get_projects_for_paper(session, user_id, paper_id)) > 0
+
+
+def get_all_papers_for_user(session, user_id: int):
+    """
+    Every paper saved anywhere across this user's projects (the global "My Papers"
+    page), paired with the project(s) each one belongs to. Returns a list of
+    {"paper": Paper, "projects": [ResearchProject, ...]} dicts.
+    """
+    papers = (
+        session.query(Paper)
+        .join(SavedPaper, SavedPaper.paper_id == Paper.id)
+        .join(ResearchProject, ResearchProject.id == SavedPaper.project_id)
+        .filter(ResearchProject.user_id == user_id)
+        .distinct()
+        .order_by(Paper.created_at.desc())
+        .all()
+    )
+
+    return [
+        {"paper": paper, "projects": get_projects_for_paper(session, user_id, paper.id)}
+        for paper in papers
+    ]
