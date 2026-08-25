@@ -20,7 +20,14 @@ DB_PATH = os.path.join(DB_DIR, "researchlens.db")
 os.makedirs(DB_DIR, exist_ok=True)
 
 engine = create_engine(f"sqlite:///{DB_PATH}", echo=False, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+# expire_on_commit=False: every route in this app follows the same pattern - open a
+# session, do some work, close it, THEN pass the objects it loaded to render_template().
+# SQLAlchemy's default (expire_on_commit=True) marks an object's attributes as stale
+# after any commit() and re-fetches them from the database on next access - which
+# raises DetachedInstanceError once the session that would do that fetching is already
+# closed. Turning it off keeps the values already loaded in memory instead, which is
+# what every template in this app actually needs.
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
 Base = declarative_base()
 
 
