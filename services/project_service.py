@@ -75,9 +75,19 @@ def get_recent_projects_for_user(session, user_id: int, limit: int = 3):
 
 
 def mark_project_viewed(session, project: ResearchProject):
-    """Stamp a project as just-opened. Called every time its detail page loads."""
+    """
+    Stamp a project as just-opened. Called every time its detail page loads.
+
+    session.commit() marks every loaded attribute on `project` as expired, so the next
+    time anything touches project.title (etc.) SQLAlchemy tries to re-fetch it from the
+    database to get the current value - but by then the route has already closed this
+    session, so that re-fetch fails with DetachedInstanceError instead. refresh() here
+    reloads those attributes immediately, while the session is still open, so the
+    object is safe to hand to render_template() after the session closes.
+    """
     project.last_viewed_at = datetime.utcnow()
     session.commit()
+    session.refresh(project)
 
 
 def update_project(session, project: ResearchProject, title: str, research_question: str,
