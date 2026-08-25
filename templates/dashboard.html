@@ -1,40 +1,63 @@
 {% extends "base_app.html" %}
 {% block title %}Dashboard · ResearchLens AI{% endblock %}
 {% block content %}
-  <h1 class="page-title">Welcome back, {{ current_user.name.split(' ')[0] }} 👋</h1>
+  <h1 class="page-title">Welcome back, {{ current_user.name.split(' ')[0] }}</h1>
   <p class="page-subtitle">Here's what's happening in your research workspace.</p>
 
   <div class="stat-grid">
-    {% for label, value in stats %}
-      <div class="stat-card">
+    {% for label, value, icon, tone in stats %}
+      <div class="stat-card {{ tone }}">
+        <div class="stat-card-top">
+          <span class="stat-card-label">{{ icon }} {{ label }}</span>
+          <span class="stat-card-chevron">→</span>
+        </div>
         <div class="stat-value">{{ value }}</div>
-        <div class="stat-label">{{ label }}</div>
       </div>
     {% endfor %}
   </div>
 
-  <div class="section-header">
-    <h2>Your Research Projects</h2>
-    <a href="{{ url_for('main.new_project') }}" class="btn btn-inline">+ New Research Project</a>
-  </div>
+  <div class="dashboard-columns">
+    <div class="panel">
+      <div class="panel-title">Recently viewed projects</div>
 
-  {% if not projects %}
-    <div class="empty-state">
-      You don't have any research projects yet. Create your first one above to get started.
+      {% if not recent_projects %}
+        <div class="empty-state">
+          You don't have any research projects yet. Create your first one to get started.
+        </div>
+      {% else %}
+        {% for p in recent_projects %}
+          <a href="{{ url_for('main.project_detail', project_id=p.id) }}" class="recent-project-row">
+            <div class="recent-project-info">
+              <div class="recent-project-title">{{ p.title }}</div>
+              <div class="recent-project-meta">{{ p.research_field or "General" }} &middot; {{ p.keywords or "No keywords yet" }}</div>
+            </div>
+            <span class="recent-project-arrow">→</span>
+          </a>
+        {% endfor %}
+      {% endif %}
+
+      <div class="section-header" style="margin-bottom: 0;">
+        <a href="{{ url_for('main.projects_list') }}" class="badge-link">View all projects →</a>
+      </div>
     </div>
-  {% else %}
-    {% for p in projects %}
-      <a href="{{ url_for('main.project_detail', project_id=p.id) }}" class="project-card project-card-link">
-        <div class="project-title">{{ p.title }}</div>
-        {% if p.research_question %}<div class="project-question">{{ p.research_question }}</div>{% endif %}
-        <div class="project-meta">{{ p.research_field or "General" }} &middot; {{ p.keywords or "No keywords yet" }}</div>
+
+    <div class="panel">
+      <div class="panel-title">Quick actions</div>
+      <a href="{{ url_for('main.new_project') }}" class="quick-action-btn primary">
+        <span class="nav-icon">＋</span> New Research Project
       </a>
-    {% endfor %}
-  {% endif %}
+      <a href="{{ url_for('papers.choose_project_for_search') }}" class="quick-action-btn">
+        <span class="nav-icon">🔍</span> Search Papers
+      </a>
+      <a href="{{ url_for('papers.my_papers') }}" class="quick-action-btn">
+        <span class="nav-icon">📄</span> My Papers
+      </a>
+    </div>
+  </div>
 
   <div class="section-header"><h2>Coming in the next build</h2></div>
   <p class="page-subtitle">
-    Paper search, AI paper analysis, the literature matrix, Ask Your Literature, and
-    research-gap detection will appear here as we build out the remaining sprints.
+    AI paper analysis, the literature matrix, Ask Your Literature, and research-gap
+    detection will appear here as we build out the remaining sprints.
   </p>
 {% endblock %}

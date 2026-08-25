@@ -1,9 +1,13 @@
 # services/project_service.py
 #
-# Logic for creating and listing a user's research projects. Will grow in Sprint 2+
-# (edit, delete, attach saved papers, etc.) - for now it covers exactly what Sprint 1 needs.
+# Logic for creating, listing, editing and deleting a user's research projects, plus
+# tracking which ones were opened most recently for the dashboard's "Recently viewed"
+# section.
+
+from datetime import datetime
 
 from models.project import ResearchProject
+from models.saved_paper import SavedPaper
 
 
 def create_project(session, user_id: int, title: str, research_question: str,
@@ -44,3 +48,58 @@ def get_project_for_user(session, user_id: int, project_id: int):
         .filter(ResearchProject.id == project_id, ResearchProject.user_id == user_id)
         .first()
     )
+
+
+def get_recent_projects_for_user(session, user_id: int, limit: int = 3):
+    """
+    The most recently *viewed* projects, for the dashboard's "Recently viewed" card -
+    not the same ordering as get_projects_for_user(), which is newest-created-first.
+
+    A project that's never been opened (last_viewed_at is still NULL) sorts after
+    everything that has been, but is not excluded - freshly created projects should
+    still show up somewhere. SQLite puts NULLs first in a DESC sort by default, so we
+    order by "has it been viewed at all" before last_viewed_at itself to push those
+    unopened projects to the back instead.
+    """
+    return (
+        session.query(ResearchProject)
+        .filter(ResearchProject.user_id == user_id)
+        .order_by(
+            ResearchProject.last_viewed_at.isnot(None).desc(),
+            ResearchProject.last_viewed_at.desc(),
+            ResearchProject.created_at.desc(),
+        )
+        .limit(limit)
+        .all()
+    )
+
+
+def mark_project_viewed(session, project: ResearchProject):
+    """Stamp a project as just-opened. Called every time its detail page loads."""
+    project.last_viewed_at = datetime.utcnow()
+    session.commit()
+
+
+def update_project(session, project: ResearchProject, title: str, research_question: str,
+                    research_field: str, keywords: str):
+    """Overwrite an existing project's editable fields in place."""
+    project.title = (title or "").strip()
+    project.research_question = (research_question or "").strip()
+    project.research_field = (research_field or "").strip()
+    project.keywords = (keywords or "").strip()
+    session.commit()
+    session.refresh(project)
+    return project
+
+
+def delete_project(session, project: ResearchProject):
+    """
+    Delete a project. This also removes its SavedPaper links (which papers are in its
+    library) first, the same way remove_paper_from_project() does for a single paper -
+    otherwise those rows would point at a project_id that no longer exists. The Paper
+    rows themselves are left alone, since the same paper might also be saved to a
+    different project.
+    """
+    session.query(SavedPaper).filter(SavedPaper.project_id == project.id).delete()
+    session.delete(project)
+    session.commit()

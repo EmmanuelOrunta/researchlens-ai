@@ -9,14 +9,25 @@
 <body>
   <div class="app-shell">
     <aside class="sidebar">
-      <div class="sidebar-brand">🔬 ResearchLens AI</div>
+      <a href="{{ url_for('main.dashboard') }}" class="sidebar-brand">
+        <span class="sidebar-brand-mark">🔬</span>
+        ResearchLens AI
+      </a>
 
       <nav class="sidebar-nav">
         <div class="nav-group">
           <div class="nav-group-label">Workspace</div>
           <a href="{{ url_for('main.dashboard') }}"
              class="nav-item {{ 'active' if request.endpoint == 'main.dashboard' else '' }}">
-            📊 Dashboard
+            <span class="nav-item-label"><span class="nav-icon">📊</span> Dashboard</span>
+          </a>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-group-label">My Projects</div>
+          <a href="{{ url_for('main.projects_list') }}"
+             class="nav-item {{ 'active' if request.endpoint in ['main.projects_list', 'main.project_detail', 'main.new_project', 'main.edit_project'] else '' }}">
+            <span class="nav-item-label"><span class="nav-icon">📁</span> My Projects</span>
           </a>
         </div>
 
@@ -24,20 +35,20 @@
           <div class="nav-group-label">Library</div>
           <a href="{{ url_for('papers.choose_project_for_search') }}"
              class="nav-item {{ 'active' if request.endpoint in ['papers.search', 'papers.choose_project_for_search'] else '' }}">
-            🔍 Search Papers
+            <span class="nav-item-label"><span class="nav-icon">🔍</span> Search Papers</span>
           </a>
           <a href="{{ url_for('papers.my_papers') }}"
              class="nav-item {{ 'active' if request.endpoint in ['papers.my_papers', 'papers.paper_detail'] else '' }}">
-            📁 My Papers
+            <span class="nav-item-label"><span class="nav-icon">📄</span> My Papers</span>
           </a>
         </div>
 
         <div class="nav-group">
           <div class="nav-group-label">Analysis</div>
-          <span class="nav-item disabled">🧠 AI Paper Analysis <span class="soon-badge">Soon</span></span>
-          <span class="nav-item disabled">📋 Literature Matrix <span class="soon-badge">Soon</span></span>
-          <span class="nav-item disabled">💬 Ask Your Literature <span class="soon-badge">Soon</span></span>
-          <span class="nav-item disabled">🧭 Research Gaps <span class="soon-badge">Soon</span></span>
+          <span class="nav-item disabled"><span class="nav-item-label"><span class="nav-icon">🧠</span> AI Paper Analysis</span> <span class="soon-badge">Soon</span></span>
+          <span class="nav-item disabled"><span class="nav-item-label"><span class="nav-icon">📋</span> Literature Matrix</span> <span class="soon-badge">Soon</span></span>
+          <span class="nav-item disabled"><span class="nav-item-label"><span class="nav-icon">💬</span> Ask Your Literature</span> <span class="soon-badge">Soon</span></span>
+          <span class="nav-item disabled"><span class="nav-item-label"><span class="nav-icon">🧭</span> Research Gaps</span> <span class="soon-badge">Soon</span></span>
         </div>
       </nav>
 

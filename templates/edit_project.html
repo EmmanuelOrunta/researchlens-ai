@@ -1,8 +1,10 @@
 {% extends "base_app.html" %}
-{% block title %}New Project · ResearchLens AI{% endblock %}
+{% block title %}Edit {{ project.title }} · ResearchLens AI{% endblock %}
 {% block content %}
-  <h1 class="page-title">New Research Project</h1>
-  <p class="page-subtitle">Every research project keeps its own papers, AI analyses and notes.</p>
+  <a href="{{ url_for('main.projects_list') }}" class="back-link">← Back to My Projects</a>
+
+  <h1 class="page-title">Edit Research Project</h1>
+  <p class="page-subtitle">Update the details for &ldquo;{{ project.title }}&rdquo;.</p>
 
   <form method="post" novalidate class="form-narrow">
     <div class="field">
@@ -32,7 +34,7 @@
     </div>
 
     <div class="form-actions">
-      <button type="submit" class="btn btn-inline">Create Project</button>
+      <button type="submit" class="btn btn-inline">Save Changes</button>
       <a href="{{ url_for('main.projects_list') }}" class="btn btn-secondary btn-inline">Cancel</a>
     </div>
   </form>

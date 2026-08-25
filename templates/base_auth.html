@@ -8,18 +8,33 @@
 </head>
 <body class="auth-body">
   <div class="auth-page">
-    <div class="auth-panel">
-      <div class="auth-logo">🔬 ResearchLens AI</div>
+    <div class="auth-form-side">
+      <div class="auth-panel">
+        <a href="{{ url_for('auth.login') }}" class="auth-logo">
+          <span class="auth-logo-mark">🔬</span> ResearchLens AI
+        </a>
 
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          {% for category, message in messages %}
-            <div class="flash flash-{{ category }}">{{ message }}</div>
-          {% endfor %}
-        {% endif %}
-      {% endwith %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="flash flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
 
-      {% block auth_content %}{% endblock %}
+        {% block auth_content %}{% endblock %}
+      </div>
+    </div>
+
+    <div class="auth-decor-side">
+      <div class="auth-decor-eyebrow">Evidence-backed research, organised</div>
+      <h2 class="auth-decor-heading">See the literature <em>clearly</em>.<br>Write with <em>evidence</em>.</h2>
+      <div class="auth-decor-card">
+        <div class="auth-decor-card-title">🧭 Potential Research Gap</div>
+        <div class="auth-decor-row"><span class="auth-decor-dot" style="background:#B23C68"></span> Only 2 of 20 studies covered Australian universities</div>
+        <div class="auth-decor-row"><span class="auth-decor-dot" style="background:#A8690B"></span> Most studies relied on surveys, not experiments</div>
+        <div class="auth-decor-row"><span class="auth-decor-dot" style="background:#12805F"></span> Postgraduate populations are underrepresented</div>
+      </div>
     </div>
   </div>
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>

@@ -10,7 +10,7 @@
 # earlier Streamlit build.
 
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -32,6 +32,27 @@ def init_db():
     from models.saved_paper import SavedPaper  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    _apply_lightweight_migrations()
+
+
+def _apply_lightweight_migrations():
+    """
+    create_all() above only creates tables that don't exist yet - it never adds a new
+    column to a table that's already on disk. Since this is a local SQLite prototype
+    with no Alembic, we handle the one case that matters (a model gained a column
+    after the database file already existed) by hand: check with PRAGMA table_info,
+    and ALTER TABLE ADD COLUMN if it's missing. Safe to call every startup - it's a
+    no-op once the column is there.
+    """
+    inspector = inspect(engine)
+    if "research_projects" not in inspector.get_table_names():
+        return  # create_all() just made it fresh, so it already has every column
+
+    existing_columns = {col["name"] for col in inspector.get_columns("research_projects")}
+    if "last_viewed_at" not in existing_columns:
+        with engine.connect() as connection:
+            connection.execute(text("ALTER TABLE research_projects ADD COLUMN last_viewed_at DATETIME"))
+            connection.commit()
 
 
 def get_session():

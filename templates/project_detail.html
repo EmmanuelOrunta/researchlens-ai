@@ -1,10 +1,15 @@
 {% extends "base_app.html" %}
 {% block title %}{{ project.title }} · ResearchLens AI{% endblock %}
 {% block content %}
-  <a href="{{ url_for('main.dashboard') }}" class="back-link">← Back to Dashboard</a>
+  <a href="{{ url_for('main.projects_list') }}" class="back-link">← Back to My Projects</a>
 
-  <h1 class="page-title">{{ project.title }}</h1>
-  <p class="page-subtitle">{{ project.research_field or "General" }} &middot; {{ project.keywords or "No keywords yet" }}</p>
+  <div class="section-header" style="margin-top: 0;">
+    <div>
+      <h1 class="page-title" style="margin-bottom: 0.2rem;">{{ project.title }}</h1>
+      <p class="page-subtitle" style="margin-bottom: 0;">{{ project.research_field or "General" }} &middot; {{ project.keywords or "No keywords yet" }}</p>
+    </div>
+    <a href="{{ url_for('main.edit_project', project_id=project.id) }}" class="btn btn-secondary btn-inline">✎ Edit Project</a>
+  </div>
 
   <div class="detail-grid">
     <div class="detail-card">

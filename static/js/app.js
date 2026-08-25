@@ -14,6 +14,18 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
+  // Forms with class="confirm-delete" show a native confirm() dialog before
+  // submitting - used for the Delete button on the My Projects page so a stray click
+  // can't wipe out a project. data-confirm on the form supplies the message.
+  document.querySelectorAll(".confirm-delete").forEach(function (form) {
+    form.addEventListener("submit", function (event) {
+      var message = form.dataset.confirm || "Are you sure?";
+      if (!window.confirm(message)) {
+        event.preventDefault();
+      }
+    });
+  });
+
   // Auto-dismiss flash messages after a few seconds
   document.querySelectorAll(".flash").forEach(function (el) {
     setTimeout(function () {
