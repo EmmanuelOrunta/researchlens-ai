@@ -29,10 +29,34 @@ def get_user_by_email(session, email: str):
     return session.query(User).filter(User.email == email).first()
 
 
+def get_user_by_id(session, user_id: int):
+    """Return the User with this id, or None. Used by the Settings page."""
+    return session.query(User).filter(User.id == user_id).first()
+
+
 def create_user(session, name: str, email: str, password_hash: str) -> User:
     """Insert a new user row and return it."""
     user = User(name=name, email=email, password_hash=password_hash)
     session.add(user)
     session.commit()
     session.refresh(user)
+    return user
+
+
+def update_user_name(session, user: User, name: str) -> User:
+    """Change the display name on an existing account (the Settings page's Profile card)."""
+    user.name = name
+    session.commit()
+    return user
+
+
+def update_user_password(session, user: User, new_password: str) -> User:
+    """
+    Overwrite an existing account's password hash. The caller (routes/settings_routes.py)
+    is responsible for checking the user's *current* password with verify_password()
+    before calling this - this function just does the write, same division of labour as
+    auth_routes.py handling validation and this file handling the actual hashing/storage.
+    """
+    user.password_hash = hash_password(new_password)
+    session.commit()
     return user
