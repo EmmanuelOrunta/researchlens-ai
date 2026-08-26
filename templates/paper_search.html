@@ -4,12 +4,33 @@
   <a href="{{ url_for('main.project_detail', project_id=project.id) }}" class="back-link">← Back to {{ project.title }}</a>
 
   <h1 class="page-title">Add Papers</h1>
-  <p class="page-subtitle">Search academic sources, or upload a PDF you already have on your computer.</p>
+  <p class="page-subtitle">Searches Semantic Scholar and OpenAlex together and merges the results, or upload a PDF you already have on your computer.</p>
 
-  <form method="get" class="search-form">
-    <input type="text" name="query" value="{{ query }}" class="search-input"
-           placeholder="e.g. generative AI student learning outcomes">
-    <button type="submit" class="btn btn-inline">Search</button>
+  <form method="get" class="search-panel">
+    <div class="search-form">
+      <input type="text" name="query" value="{{ query }}" class="search-input"
+             placeholder="e.g. generative AI student learning outcomes">
+      <button type="submit" class="btn btn-inline">Search</button>
+    </div>
+    <div class="filter-row">
+      <div class="filter-field">
+        <label for="year_from">Year from</label>
+        <input type="number" id="year_from" name="year_from" value="{{ year_from }}" placeholder="e.g. 2022" min="1900" max="2100">
+      </div>
+      <div class="filter-field">
+        <label for="year_to">Year to</label>
+        <input type="number" id="year_to" name="year_to" value="{{ year_to }}" placeholder="e.g. 2026" min="1900" max="2100">
+      </div>
+      <div class="filter-field">
+        <label for="sort">Sort by</label>
+        <select id="sort" name="sort">
+          <option value="relevance" {{ "selected" if sort == "relevance" }}>Relevance</option>
+          <option value="newest" {{ "selected" if sort == "newest" }}>Newest first</option>
+          <option value="oldest" {{ "selected" if sort == "oldest" }}>Oldest first</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-secondary btn-inline">Apply Filters</button>
+    </div>
   </form>
 
   {% if search_error %}
@@ -19,17 +40,22 @@
   {% if results is not none %}
     <div class="section-header">
       <h2>Results for &ldquo;{{ query }}&rdquo;</h2>
-      {% if source_used %}<span class="badge-muted">via {{ source_used }}</span>{% endif %}
+      <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+        {% if total_count %}<span class="badge-muted">{{ total_count }} paper{{ "s" if total_count != 1 }}</span>{% endif %}
+        {% for label in sources_used %}<span class="badge-muted">via {{ label }}</span>{% endfor %}
+      </div>
     </div>
 
     {% if not results %}
-      <div class="empty-state">No papers found for that search. Try different keywords.</div>
+      <div class="empty-state">No papers found for that search. Try different keywords{% if year_from or year_to %} or widen the year range{% endif %}.</div>
     {% else %}
       {% for paper in results %}
         <div class="result-card">
           <div class="result-title">{{ paper.title }}</div>
           <div class="result-meta">
             {{ paper.authors or "Unknown authors" }}{% if paper.year %} &middot; {{ paper.year }}{% endif %}
+            &middot;
+            <span class="badge-muted">{{ "OpenAlex" if paper.source == "openalex" else "Semantic Scholar" }}</span>
           </div>
           {% if paper.abstract %}
             <p class="result-abstract">
@@ -48,12 +74,35 @@
               <input type="hidden" name="abstract" value="{{ paper.abstract or '' }}">
               <input type="hidden" name="doi" value="{{ paper.doi or '' }}">
               <input type="hidden" name="url" value="{{ paper.url or '' }}">
+              <input type="hidden" name="source" value="{{ paper.source or 'semantic_scholar' }}">
               <input type="hidden" name="query" value="{{ query }}">
+              <input type="hidden" name="year_from" value="{{ year_from }}">
+              <input type="hidden" name="year_to" value="{{ year_to }}">
+              <input type="hidden" name="sort" value="{{ sort }}">
+              <input type="hidden" name="page" value="{{ page }}">
               <button type="submit" class="btn btn-inline">Save to Project</button>
             </form>
           </div>
         </div>
       {% endfor %}
+
+      {% if total_pages > 1 %}
+        <div class="pagination">
+          {% if page > 1 %}
+            <a href="{{ url_for('papers.search', project_id=project.id, query=query, year_from=year_from, year_to=year_to, sort=sort, page=page - 1) }}" class="btn btn-secondary btn-inline">← Previous</a>
+          {% else %}
+            <span class="btn btn-secondary btn-inline pagination-disabled">← Previous</span>
+          {% endif %}
+
+          <span class="pagination-status">Page {{ page }} of {{ total_pages }}</span>
+
+          {% if page < total_pages %}
+            <a href="{{ url_for('papers.search', project_id=project.id, query=query, year_from=year_from, year_to=year_to, sort=sort, page=page + 1) }}" class="btn btn-secondary btn-inline">Next →</a>
+          {% else %}
+            <span class="btn btn-secondary btn-inline pagination-disabled">Next →</span>
+          {% endif %}
+        </div>
+      {% endif %}
     {% endif %}
   {% endif %}
 
