@@ -1,0 +1,64 @@
+{% extends "base_app.html" %}
+{% block title %}Settings · ResearchLens AI{% endblock %}
+{% block content %}
+  <h1 class="page-title">Settings</h1>
+  <p class="page-subtitle">Manage your profile and account security.</p>
+
+  <div class="dashboard-columns">
+    <div class="panel">
+      <div class="panel-title">Profile</div>
+      <form method="post" action="{{ url_for('settings.update_profile') }}" novalidate>
+        <div class="field">
+          <label for="name">Full name</label>
+          <input type="text" id="name" name="name" value="{{ name_form.name if name_form.name is defined else user.name }}"
+                 class="{{ 'has-error' if name_errors.name else '' }}">
+          {% if name_errors.name %}<div class="field-error">{{ name_errors.name }}</div>{% endif %}
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input type="text" value="{{ user.email }}" disabled style="background:#F4F0E7; color: var(--color-text-muted);">
+          <div class="field-hint">Email changes aren't supported yet.</div>
+        </div>
+        <button type="submit" class="btn btn-inline">Save Name</button>
+      </form>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Security</div>
+      <form method="post" action="{{ url_for('settings.update_password') }}" novalidate>
+        <div class="field">
+          <label for="current_password">Current password</label>
+          <div class="input-with-action">
+            <input type="password" id="current_password" name="current_password"
+                   class="{{ 'has-error' if password_errors.current_password else '' }}">
+            <button type="button" class="toggle-password" data-target="current_password">Show</button>
+          </div>
+          {% if password_errors.current_password %}<div class="field-error">{{ password_errors.current_password }}</div>{% endif %}
+        </div>
+        <div class="field">
+          <label for="new_password">New password</label>
+          <div class="input-with-action">
+            <input type="password" id="new_password" name="new_password"
+                   class="{{ 'has-error' if password_errors.new_password else '' }}">
+            <button type="button" class="toggle-password" data-target="new_password">Show</button>
+          </div>
+          {% if password_errors.new_password %}
+            <div class="field-error">{{ password_errors.new_password }}</div>
+          {% else %}
+            <div class="field-hint">At least 8 characters, with an uppercase letter, a lowercase letter, a number, and a special character.</div>
+          {% endif %}
+        </div>
+        <div class="field">
+          <label for="confirm_new_password">Confirm new password</label>
+          <div class="input-with-action">
+            <input type="password" id="confirm_new_password" name="confirm_new_password"
+                   class="{{ 'has-error' if password_errors.confirm_new_password else '' }}">
+            <button type="button" class="toggle-password" data-target="confirm_new_password">Show</button>
+          </div>
+          {% if password_errors.confirm_new_password %}<div class="field-error">{{ password_errors.confirm_new_password }}</div>{% endif %}
+        </div>
+        <button type="submit" class="btn btn-inline">Update Password</button>
+      </form>
+    </div>
+  </div>
+{% endblock %}
