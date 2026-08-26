@@ -21,7 +21,13 @@ def get_paper_by_external_id(session, external_id: str):
 
 
 def create_paper_from_search_result(session, data: dict) -> Paper:
-    """Insert a Paper row from a Semantic Scholar search result dict."""
+    """
+    Insert a Paper row from a search result dict - either Semantic Scholar's or
+    OpenAlex's shape, both normalised to the same keys by their respective services.
+    `data["source"]` records which one it actually came from ("semantic_scholar" or
+    "openalex"), defaulting to "semantic_scholar" only for backward compatibility with
+    any old bookmarked save requests that predate the OpenAlex integration.
+    """
     paper = Paper(
         title=data.get("title") or "Untitled",
         authors=data.get("authors"),
@@ -29,7 +35,7 @@ def create_paper_from_search_result(session, data: dict) -> Paper:
         abstract=data.get("abstract"),
         doi=data.get("doi"),
         url=data.get("url"),
-        source="semantic_scholar",
+        source=data.get("source") or "semantic_scholar",
         external_id=data.get("external_id"),
     )
     session.add(paper)
