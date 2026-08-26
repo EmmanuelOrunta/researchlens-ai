@@ -377,6 +377,42 @@ a.nav-item.active .nav-icon { background: white; }
 
 .main-content { flex: 1; padding: 2.5rem 3rem; max-width: 1180px; }
 
+/* ---------- Topbar (user info + sign out, top-right of every app page) ---------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+.topbar-user { display: flex; align-items: center; gap: 0.75rem; }
+.topbar-user-info { text-align: right; text-decoration: none; color: inherit; }
+.topbar-user-name { font-weight: 600; font-size: 0.88rem; }
+.topbar-user-email { font-size: 0.76rem; color: var(--color-text-muted); }
+.topbar-avatar {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: var(--color-ink);
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.btn-signout-topbar {
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-family: inherit;
+  font-weight: 600;
+}
+.btn-signout-topbar:hover { background: #FBF8F2; }
+
 .page-title { font-family: var(--font-display); font-size: 2rem; font-weight: 600; margin: 0 0 0.25rem; }
 .page-subtitle { color: var(--color-text-muted); margin: 0 0 1.75rem; font-size: 1rem; }
 
@@ -647,6 +683,49 @@ a.project-card-link:hover {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-primary-soft);
 }
+
+/* ---------- Search filter bar + pagination ---------- */
+
+.search-panel { margin-bottom: 1.25rem; }
+.filter-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  margin-top: 0.7rem;
+  padding: 0.9rem 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+.filter-field { display: flex; flex-direction: column; gap: 0.3rem; }
+.filter-field label { font-size: 0.76rem; font-weight: 600; color: var(--color-text-muted); }
+.filter-field input,
+.filter-field select {
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-strong);
+  font-size: 0.9rem;
+  font-family: inherit;
+  background: var(--color-surface);
+  width: 130px;
+}
+.filter-field input:focus,
+.filter-field select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  margin: 1.75rem 0 1rem;
+}
+.pagination-status { color: var(--color-text-muted); font-size: 0.85rem; font-weight: 600; }
+.pagination-disabled { opacity: 0.4; pointer-events: none; }
 
 .result-card {
   background: var(--color-surface);
