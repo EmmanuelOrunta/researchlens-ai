@@ -8,6 +8,8 @@
 # choose_project_for_search() first, which works out which project that should be.
 
 import os
+import re
+import math
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort, send_file
 
 from services.database_service import get_session
@@ -48,25 +50,117 @@ def _get_owned_project_or_404(db_session, project_id):
     return project
 
 
-def _search_academic_sources(query, limit=10):
-    """
-    Try Semantic Scholar first; if it fails outright (no internet, rate-limited, the
-    service is down), automatically fall back to OpenAlex instead of just giving up.
-    Returns (results, source_label, error_message).
-    """
-    results = search_semantic_scholar(query, limit=limit)
-    if results is not None:
-        return results, "Semantic Scholar", None
+SEARCH_FETCH_LIMIT_PER_SOURCE = 30  # how many results to pull from EACH API per search
+SEARCH_PAGE_SIZE = 10               # how many merged results to show per page
 
-    results = search_openalex(query, limit=limit)
-    if results is not None:
-        return results, "OpenAlex", None
+SOURCE_LABELS = {"semantic_scholar": "Semantic Scholar", "openalex": "OpenAlex"}
 
-    return None, None, (
-        "Couldn't reach Semantic Scholar or OpenAlex right now. "
-        "Check your internet connection - or the terminal running `python app.py` "
-        "usually shows the real error - and try again."
-    )
+
+def _dedupe_key(paper):
+    """
+    Semantic Scholar and OpenAlex will often return the very same paper - a DOI is the
+    most reliable way to recognise that, since it's a stable identifier assigned once
+    to a publication regardless of which index is reporting it. When a paper has no
+    DOI (common for preprints, some conference papers, etc.), fall back to a loosely
+    normalised title instead - good enough to catch obvious duplicates without being so
+    strict that unrelated papers with slightly different titles collide.
+    """
+    doi = (paper.get("doi") or "").strip().lower()
+    if doi:
+        return f"doi:{doi}"
+    title = re.sub(r"[^a-z0-9]+", " ", (paper.get("title") or "").lower()).strip()
+    return f"title:{title}"
+
+
+def _search_academic_sources(query, limit_per_source=SEARCH_FETCH_LIMIT_PER_SOURCE):
+    """
+    Query Semantic Scholar AND OpenAlex (rather than only falling back to the second
+    one if the first fails), tag every result with which of the two it came from, and
+    merge them round-robin (one from Semantic Scholar, one from OpenAlex, repeat) so
+    the combined list roughly reflects both engines' own relevance ranking instead of
+    dumping all of one source before any of the other. Duplicates (the same paper
+    showing up in both) are dropped, keeping whichever copy was seen first.
+
+    Returns (merged_results, sources_used, error_message). sources_used lists which
+    API(s) actually responded, even if one of them found zero results - it's only
+    excluded if the request failed outright. error_message is only set if BOTH
+    sources failed.
+    """
+    ss_results = search_semantic_scholar(query, limit=limit_per_source)
+    oa_results = search_openalex(query, limit=limit_per_source)
+
+    if ss_results is not None:
+        for paper in ss_results:
+            paper["source"] = "semantic_scholar"
+    if oa_results is not None:
+        for paper in oa_results:
+            paper["source"] = "openalex"
+
+    if ss_results is None and oa_results is None:
+        return [], [], (
+            "Couldn't reach Semantic Scholar or OpenAlex right now. "
+            "Check your internet connection - or the terminal running `python app.py` "
+            "usually shows the real error - and try again."
+        )
+
+    lists = [results for results in (ss_results, oa_results) if results is not None]
+    sources_used = [SOURCE_LABELS[results[0]["source"]] for results in lists if results]
+    # A source can respond successfully with zero hits - still worth showing it was
+    # consulted, so fall back to labelling it from whichever list is empty-but-present.
+    if len(sources_used) < len(lists):
+        sources_used = [
+            SOURCE_LABELS["semantic_scholar"] if results is ss_results else SOURCE_LABELS["openalex"]
+            for results in lists
+        ]
+
+    merged = []
+    seen_keys = set()
+    max_len = max((len(results) for results in lists), default=0)
+    for i in range(max_len):
+        for results in lists:
+            if i >= len(results):
+                continue
+            key = _dedupe_key(results[i])
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            merged.append(results[i])
+
+    return merged, sources_used, None
+
+
+def _filter_by_year(results, year_from, year_to):
+    """Drop anything outside [year_from, year_to]. A paper with no known year is
+    excluded whenever a year filter is active, since we can't confirm it belongs."""
+    if year_from is None and year_to is None:
+        return results
+
+    def in_range(paper):
+        year = paper.get("year")
+        if year is None:
+            return False
+        if year_from is not None and year < year_from:
+            return False
+        if year_to is not None and year > year_to:
+            return False
+        return True
+
+    return [paper for paper in results if in_range(paper)]
+
+
+def _sort_results(results, sort):
+    if sort == "newest":
+        return sorted(results, key=lambda p: p.get("year") if p.get("year") is not None else -9999, reverse=True)
+    if sort == "oldest":
+        return sorted(results, key=lambda p: p.get("year") if p.get("year") is not None else 9999)
+    return results  # "relevance" (default) - keep the merged order as-is
+
+
+def _parse_year_arg(raw_value):
+    raw_value = (raw_value or "").strip()
+    if not raw_value.isdigit():
+        return None
+    return int(raw_value)
 
 
 @papers_bp.route("/projects/<int:project_id>/search", methods=["GET"])
@@ -82,20 +176,46 @@ def search(project_id):
         db_session.close()
 
     query = request.args.get("query", "").strip()
+    year_from_raw = request.args.get("year_from", "").strip()
+    year_to_raw = request.args.get("year_to", "").strip()
+    sort = request.args.get("sort", "relevance")
+    if sort not in ("relevance", "newest", "oldest"):
+        sort = "relevance"
+
+    year_from = _parse_year_arg(year_from_raw)
+    year_to = _parse_year_arg(year_to_raw)
+
     results = None
-    source_used = None
+    sources_used = []
     search_error = None
+    total_count = 0
+    total_pages = 1
+    page = request.args.get("page", 1, type=int) or 1
 
     if query:
-        results, source_used, search_error = _search_academic_sources(query)
+        all_results, sources_used, search_error = _search_academic_sources(query)
+        all_results = _filter_by_year(all_results, year_from, year_to)
+        all_results = _sort_results(all_results, sort)
+
+        total_count = len(all_results)
+        total_pages = max(1, math.ceil(total_count / SEARCH_PAGE_SIZE))
+        page = max(1, min(page, total_pages))
+        start = (page - 1) * SEARCH_PAGE_SIZE
+        results = all_results[start:start + SEARCH_PAGE_SIZE]
 
     return render_template(
         "paper_search.html",
         project=project,
         query=query,
         results=results,
-        source_used=source_used,
+        sources_used=sources_used,
         search_error=search_error,
+        year_from=year_from_raw,
+        year_to=year_to_raw,
+        sort=sort,
+        page=page,
+        total_pages=total_pages,
+        total_count=total_count,
     )
 
 
@@ -227,6 +347,7 @@ def save_from_search(project_id):
                 "abstract": request.form.get("abstract"),
                 "doi": request.form.get("doi") or None,
                 "url": request.form.get("url") or None,
+                "source": request.form.get("source") or "semantic_scholar",
             })
 
         save_paper_to_project(db_session, project.id, paper.id)
@@ -234,7 +355,14 @@ def save_from_search(project_id):
         db_session.close()
 
     flash("Paper saved to your project.", "success")
-    return redirect(url_for("papers.search", project_id=project_id, query=request.form.get("query", "")))
+    return redirect(url_for(
+        "papers.search", project_id=project_id,
+        query=request.form.get("query", ""),
+        year_from=request.form.get("year_from", ""),
+        year_to=request.form.get("year_to", ""),
+        sort=request.form.get("sort", "relevance"),
+        page=request.form.get("page", 1),
+    ))
 
 
 @papers_bp.route("/projects/<int:project_id>/papers/upload", methods=["POST"])
