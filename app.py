@@ -17,6 +17,7 @@ from models.user import User
 from routes.auth_routes import auth_bp
 from routes.main_routes import main_bp
 from routes.papers_routes import papers_bp
+from routes.settings_routes import settings_bp
 
 load_dotenv()
 
@@ -29,6 +30,24 @@ init_db()  # creates database/researchlens.db and its tables the first time this
 app.register_blueprint(auth_bp)
 app.register_blueprint(main_bp)
 app.register_blueprint(papers_bp)
+app.register_blueprint(settings_bp)
+
+
+@app.template_filter("initials")
+def initials_filter(name):
+    """
+    'Emma Nakamura' -> 'EN', 'Cher' -> 'C'. Used for the little circular avatar in the
+    top-right corner of every app page, the same idea as the "DH" avatar in most
+    dashboard-style products.
+    """
+    if not name:
+        return "?"
+    parts = [part for part in name.strip().split() if part]
+    if not parts:
+        return "?"
+    if len(parts) == 1:
+        return parts[0][0].upper()
+    return (parts[0][0] + parts[-1][0]).upper()
 
 
 @app.context_processor
