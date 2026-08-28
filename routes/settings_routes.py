@@ -13,7 +13,9 @@ from services.auth_service import (
     verify_password,
     update_user_name,
     update_user_password,
+    delete_user,
 )
+from services.project_service import delete_all_projects_for_user
 from routes.main_routes import login_required
 from routes.auth_routes import get_password_error
 
@@ -29,7 +31,10 @@ def settings():
     finally:
         db_session.close()
 
-    return render_template("settings.html", user=user, name_errors={}, password_errors={}, name_form={})
+    return render_template(
+        "settings.html", user=user,
+        name_errors={}, password_errors={}, delete_errors={}, name_form={},
+    )
 
 
 @settings_bp.route("/settings/profile", methods=["POST"])
@@ -48,7 +53,7 @@ def update_profile():
         if errors:
             return render_template(
                 "settings.html", user=user,
-                name_errors=errors, password_errors={}, name_form={"name": name},
+                name_errors=errors, password_errors={}, delete_errors={}, name_form={"name": name},
             )
 
         update_user_name(db_session, user, name)
@@ -89,7 +94,7 @@ def update_password():
         if errors:
             return render_template(
                 "settings.html", user=user,
-                name_errors={}, password_errors=errors, name_form={},
+                name_errors={}, password_errors=errors, delete_errors={}, name_form={},
             )
 
         update_user_password(db_session, user, new_password)
@@ -98,3 +103,38 @@ def update_password():
 
     flash("Your password has been updated.", "success")
     return redirect(url_for("settings.settings"))
+
+
+@settings_bp.route("/settings/delete-account", methods=["POST"])
+@login_required
+def delete_account():
+    """
+    Permanently delete the signed-in user's account: every research project they own,
+    the saved-paper links inside those projects, and the account itself. Requires the
+    current password (same check as changing your password) so a stray click - or
+    someone else at an unlocked, still-logged-in browser - can't wipe an account by
+    accident. The JS confirm() dialog on the form (see confirm-delete in app.js) is a
+    first speed bump before the request is even sent; this is the real gate.
+    """
+    current_password = request.form.get("current_password", "")
+
+    db_session = get_session()
+    try:
+        user = get_user_by_id(db_session, session["user_id"])
+
+        if not current_password or not verify_password(current_password, user.password_hash):
+            return render_template(
+                "settings.html", user=user,
+                name_errors={}, password_errors={},
+                delete_errors={"current_password": "That's not your current password."},
+                name_form={},
+            )
+
+        delete_all_projects_for_user(db_session, user.id)
+        delete_user(db_session, user)
+    finally:
+        db_session.close()
+
+    session.clear()
+    flash("Your account has been deleted. You're welcome to register again anytime.", "success")
+    return redirect(url_for("auth.login"))
