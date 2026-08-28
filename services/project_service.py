@@ -113,3 +113,25 @@ def delete_project(session, project: ResearchProject):
     session.query(SavedPaper).filter(SavedPaper.project_id == project.id).delete()
     session.delete(project)
     session.commit()
+
+
+def delete_all_projects_for_user(session, user_id: int):
+    """
+    Wipe every research project this user owns, and the SavedPaper links that point at
+    them - the cascade a full account deletion needs (see auth_service.delete_user(),
+    called right after this by routes/settings_routes.py). Same idea as delete_project()
+    above, just as one bulk delete for every project at once instead of looping
+    delete_project() a row at a time.
+
+    As with delete_project(), the Paper rows themselves are left alone - they're not
+    owned by any one user, and might still be saved to someone else's project.
+    """
+    project_ids = [
+        row[0] for row in
+        session.query(ResearchProject.id).filter(ResearchProject.user_id == user_id).all()
+    ]
+    if not project_ids:
+        return
+    session.query(SavedPaper).filter(SavedPaper.project_id.in_(project_ids)).delete(synchronize_session=False)
+    session.query(ResearchProject).filter(ResearchProject.id.in_(project_ids)).delete(synchronize_session=False)
+    session.commit()
