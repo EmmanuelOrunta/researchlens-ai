@@ -61,4 +61,26 @@
       </form>
     </div>
   </div>
+
+  <div class="panel panel-danger">
+    <div class="panel-title">Danger Zone</div>
+    <p>
+      Deleting your account permanently removes it, along with every research project
+      and saved paper in it. This can't be undone - but if you change your mind later,
+      you're free to register a brand new account with the same email address.
+    </p>
+    <form method="post" action="{{ url_for('settings.delete_account') }}" novalidate
+          class="confirm-delete" data-confirm="Delete your account and all your research projects? This can't be undone.">
+      <div class="field">
+        <label for="delete_current_password">Confirm your password</label>
+        <div class="input-with-action">
+          <input type="password" id="delete_current_password" name="current_password"
+                 class="{{ 'has-error' if delete_errors.current_password else '' }}">
+          <button type="button" class="toggle-password" data-target="delete_current_password">Show</button>
+        </div>
+        {% if delete_errors.current_password %}<div class="field-error">{{ delete_errors.current_password }}</div>{% endif %}
+      </div>
+      <button type="submit" class="btn btn-danger-ghost btn-inline">Delete My Account</button>
+    </form>
+  </div>
 {% endblock %}
