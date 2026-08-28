@@ -60,3 +60,18 @@ def update_user_password(session, user: User, new_password: str) -> User:
     user.password_hash = hash_password(new_password)
     session.commit()
     return user
+
+
+def delete_user(session, user: User):
+    """
+    Permanently delete this account. The caller (routes/settings_routes.py) is
+    responsible for wiping the user's owned data first - project_service's
+    delete_all_projects_for_user() - the same division of labour as everywhere else in
+    this file: routes handle validation/orchestration, this file does the actual write.
+
+    Once this commits, the row is gone - the `email` unique constraint frees up
+    immediately, so the same address can be used to register a brand new account
+    afterwards, same as if it had never signed up.
+    """
+    session.delete(user)
+    session.commit()
