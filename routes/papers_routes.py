@@ -50,8 +50,15 @@ def _get_owned_project_or_404(db_session, project_id):
     return project
 
 
-SEARCH_FETCH_LIMIT_PER_SOURCE = 30  # how many results to pull from EACH API per search
-SEARCH_PAGE_SIZE = 10               # how many merged results to show per page
+SEARCH_FETCH_LIMIT_PER_SOURCE = 100  # how many results to pull from EACH API per search
+SEARCH_PAGE_SIZE = 10                # how many merged results to show per page
+
+# 100 is Semantic Scholar's own hard ceiling for a single request on the search
+# endpoint this app calls (see MAX_LIMIT in semantic_scholar_service.py) - it's the
+# most this app can pull from that source per search without adding real upstream
+# pagination. OpenAlex allows up to 200 per request, but both are fetched at the same
+# number here so the round-robin merge below draws roughly evenly from each rather
+# than always running out of one source first.
 
 SOURCE_LABELS = {"semantic_scholar": "Semantic Scholar", "openalex": "OpenAlex"}
 
@@ -103,6 +110,22 @@ def _search_academic_sources(query, limit_per_source=SEARCH_FETCH_LIMIT_PER_SOUR
             "usually shows the real error - and try again."
         )
 
+    # One source failing outright (rather than both) isn't a hard error - there are
+    # still results to show - but it's exactly why a search can look OpenAlex-heavy: if
+    # Semantic Scholar's shared, unauthenticated rate limit rejected this request, every
+    # result below is quietly coming from OpenAlex alone. Surface that instead of
+    # letting it look like Semantic Scholar simply had nothing relevant to say.
+    partial_warning = None
+    if ss_results is None:
+        partial_warning = (
+            "Semantic Scholar didn't respond to this search (likely rate-limited - its "
+            "free tier is shared across everyone using it without a personal API key), "
+            "so these results are from OpenAlex only. Add a free SEMANTIC_SCHOLAR_API_KEY "
+            "in .env for more reliable results - see .env.example."
+        )
+    elif oa_results is None:
+        partial_warning = "OpenAlex didn't respond to this search, so these results are from Semantic Scholar only."
+
     lists = [results for results in (ss_results, oa_results) if results is not None]
     sources_used = [SOURCE_LABELS[results[0]["source"]] for results in lists if results]
     # A source can respond successfully with zero hits - still worth showing it was
@@ -126,7 +149,7 @@ def _search_academic_sources(query, limit_per_source=SEARCH_FETCH_LIMIT_PER_SOUR
             seen_keys.add(key)
             merged.append(results[i])
 
-    return merged, sources_used, None
+    return merged, sources_used, partial_warning
 
 
 def _filter_by_year(results, year_from, year_to):
