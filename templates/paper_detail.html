@@ -7,7 +7,7 @@
   <p class="page-subtitle">
     {{ paper.authors or "Unknown authors" }}{% if paper.year %} &middot; {{ paper.year }}{% endif %}
     &middot;
-    <span class="badge-muted">{{ "Uploaded PDF" if paper.source == "upload" else "Semantic Scholar" }}</span>
+    <span class="badge-muted">{{ "Uploaded PDF" if paper.source == "upload" else ("OpenAlex" if paper.source == "openalex" else "Semantic Scholar") }}</span>
   </p>
 
   <div class="result-actions" style="margin-bottom: 1.5rem;">
