@@ -41,7 +41,7 @@
               <div class="paper-list-meta">
                 {{ paper.authors or "Unknown authors" }}{% if paper.year %} &middot; {{ paper.year }}{% endif %}
                 &middot;
-                <span class="badge-muted">{{ "Uploaded PDF" if paper.source == "upload" else "Semantic Scholar" }}</span>
+                <span class="badge-muted">{{ "Uploaded PDF" if paper.source == "upload" else ("OpenAlex" if paper.source == "openalex" else "Semantic Scholar") }}</span>
               </div>
             </li>
           {% endfor %}
