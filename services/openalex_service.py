@@ -15,6 +15,12 @@ import requests
 SEARCH_URL = "https://api.openalex.org/works"
 REQUEST_TIMEOUT_SECONDS = 10
 
+# OpenAlex's own ceiling on per-page - asking for more just gets clamped/rejected
+# server-side. OpenAlex is far more generous than Semantic Scholar here (no per-key
+# rate limit for reasonable use), which is part of why it tends to fill in results
+# whenever Semantic Scholar's shared unauthenticated pool is rate-limiting this app.
+MAX_LIMIT = 200
+
 # OpenAlex asks API users to identify themselves with a contact in the User-Agent -
 # it's not required, but being a "good citizen" here makes OpenAlex less likely to
 # rate-limit us. Feel free to swap in a real contact email for your team.
@@ -30,7 +36,7 @@ def search_papers(query: str, limit: int = 10):
     try:
         response = requests.get(
             SEARCH_URL,
-            params={"search": query, "per-page": limit},
+            params={"search": query, "per-page": min(limit, MAX_LIMIT)},
             headers=HEADERS,
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
