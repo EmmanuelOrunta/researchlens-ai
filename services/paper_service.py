@@ -4,6 +4,8 @@
 # which papers are saved to which research project (the "research library" from the
 # project plan).
 
+from datetime import datetime
+
 from models.paper import Paper
 from models.saved_paper import SavedPaper
 from models.project import ResearchProject
@@ -150,3 +152,77 @@ def get_all_papers_for_user(session, user_id: int):
         {"paper": paper, "projects": get_projects_for_paper(session, user_id, paper.id)}
         for paper in papers
     ]
+
+
+# --- Sprint 3: AI summaries, per-project relevance analysis, and per-project notes ---
+
+
+def set_paper_summary(session, paper: Paper, summary: str) -> Paper:
+    """Store an AI-generated summary on a paper (see services/openai_service.py's
+    summarize_paper()). Shared across every project the paper is saved to."""
+    paper.summary = summary
+    paper.summary_generated_at = datetime.utcnow()
+    session.commit()
+    session.refresh(paper)
+    return paper
+
+
+def get_saved_paper(session, project_id: int, paper_id: int):
+    """
+    The SavedPaper link row for one paper in one project - this is where per-project
+    notes and relevance analysis live (see models/saved_paper.py), so routes fetch
+    this row before reading or writing either one.
+    """
+    return (
+        session.query(SavedPaper)
+        .filter(SavedPaper.project_id == project_id, SavedPaper.paper_id == paper_id)
+        .first()
+    )
+
+
+def get_saved_paper_entries_for_project(session, project_id: int):
+    """
+    Like get_saved_papers_for_project(), but returns (Paper, SavedPaper) pairs instead
+    of bare Paper rows - project_papers.html needs the SavedPaper side too, since
+    that's where this project's notes and relevance analysis for each paper live.
+    """
+    return (
+        session.query(Paper, SavedPaper)
+        .join(SavedPaper, SavedPaper.paper_id == Paper.id)
+        .filter(SavedPaper.project_id == project_id)
+        .order_by(SavedPaper.saved_at.desc())
+        .all()
+    )
+
+
+def update_saved_paper_notes(session, saved_paper: SavedPaper, notes: str) -> SavedPaper:
+    """Overwrite this paper's free-form notes within this one project."""
+    saved_paper.notes = notes or None
+    session.commit()
+    session.refresh(saved_paper)
+    return saved_paper
+
+
+def set_saved_paper_relevance(session, saved_paper: SavedPaper, analysis: str) -> SavedPaper:
+    """Store an AI-generated relevance analysis for this paper, within this one
+    project (see services/openai_service.py's analyze_relevance())."""
+    saved_paper.relevance_analysis = analysis
+    saved_paper.relevance_generated_at = datetime.utcnow()
+    session.commit()
+    session.refresh(saved_paper)
+    return saved_paper
+
+
+def count_summarized_papers_for_user(session, user_id: int) -> int:
+    """
+    How many distinct papers (across all of a user's projects) have an AI summary -
+    powers the dashboard's "Papers Analysed" stat card.
+    """
+    return (
+        session.query(Paper.id)
+        .join(SavedPaper, SavedPaper.paper_id == Paper.id)
+        .join(ResearchProject, ResearchProject.id == SavedPaper.project_id)
+        .filter(ResearchProject.user_id == user_id, Paper.summary.isnot(None))
+        .distinct()
+        .count()
+    )
