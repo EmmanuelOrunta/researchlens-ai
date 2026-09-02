@@ -18,7 +18,11 @@ from services.project_service import (
     update_project,
     delete_project,
 )
-from services.paper_service import get_saved_papers_for_project, count_saved_papers_for_user
+from services.paper_service import (
+    get_saved_papers_for_project,
+    count_saved_papers_for_user,
+    count_summarized_papers_for_user,
+)
 
 main_bp = Blueprint("main", __name__)
 
@@ -41,13 +45,14 @@ def dashboard():
         project_count = len(get_projects_for_user(db_session, user_id))
         recent_projects = get_recent_projects_for_user(db_session, user_id, limit=3)
         saved_papers_count = count_saved_papers_for_user(db_session, user_id)
+        summarized_count = count_summarized_papers_for_user(db_session, user_id)
     finally:
         db_session.close()
 
     stats = [
         ("Research Projects", project_count, "📁", "stat-violet"),
         ("Saved Papers", saved_papers_count, "📄", "stat-amber"),
-        ("Papers Analysed", 0, "🧠", "stat-teal"),
+        ("Papers Analysed", summarized_count, "🧠", "stat-teal"),
         ("Potential Gaps Found", 0, "🧭", "stat-rose"),
     ]
     return render_template("dashboard.html", recent_projects=recent_projects, stats=stats)
