@@ -4,14 +4,16 @@
   <a href="{{ url_for('main.project_detail', project_id=project.id) }}" class="back-link">← Back to {{ project.title }}</a>
 
   <div class="section-header">
-    <h1 class="page-title" style="margin: 0;">Saved Papers ({{ papers|length }})</h1>
+    <h1 class="page-title" style="margin: 0;">Saved Papers ({{ entries|length }})</h1>
     <a href="{{ url_for('papers.search', project_id=project.id) }}" class="btn btn-inline">+ Add Papers</a>
   </div>
 
-  {% if not papers %}
+  {% if not entries %}
     <div class="empty-state">No papers saved yet. Search academic sources or upload a PDF to get started.</div>
   {% else %}
-    {% for paper in papers %}
+    {% for entry in entries %}
+      {% set paper = entry.paper %}
+      {% set saved_paper = entry.saved_paper %}
       <div class="result-card">
         <div class="result-title">
           <a href="{{ url_for('papers.paper_detail', paper_id=paper.id) }}">{{ paper.title }}</a>
@@ -24,7 +26,42 @@
         {% if paper.abstract %}
           <p class="result-abstract">{{ paper.abstract[:280] }}{% if paper.abstract|length > 280 %}…{% endif %}</p>
         {% endif %}
-        <div class="result-actions">
+
+        <div class="detail-card" style="margin-top: 1rem;">
+          <div class="detail-card-header">
+            <h2>🎯 Relevance to this project</h2>
+            {% if paper.abstract or paper.extracted_text %}
+              <form method="post" action="{{ url_for('papers.generate_relevance', project_id=project.id, paper_id=paper.id) }}">
+                <button type="submit" class="btn btn-secondary btn-sm">
+                  {{ "Regenerate" if saved_paper.relevance_analysis else "Analyse Relevance" }}
+                </button>
+              </form>
+            {% endif %}
+          </div>
+          {% if saved_paper.relevance_analysis %}
+            <p class="detail-card-body">{{ saved_paper.relevance_analysis }}</p>
+          {% elif not openai_configured %}
+            <p class="detail-card-empty">Add a free OPENAI_API_KEY in .env to generate this - see .env.example.</p>
+          {% elif not (project.research_question or project.research_field or project.keywords) %}
+            <p class="detail-card-empty">Add a research question, field, or keywords to this project first (Edit Project).</p>
+          {% elif not (paper.abstract or paper.extracted_text) %}
+            <p class="detail-card-empty">No abstract or extracted text to analyse.</p>
+          {% else %}
+            <p class="detail-card-empty">Not generated yet.</p>
+          {% endif %}
+        </div>
+
+        <div class="detail-card" style="margin-top: 0.8rem;">
+          <div class="detail-card-header"><h2>📝 Notes</h2></div>
+          <form method="post" action="{{ url_for('papers.save_notes', project_id=project.id, paper_id=paper.id) }}" class="form-narrow" style="margin: 0;">
+            <div class="field" style="margin-bottom: 0.6rem;">
+              <textarea name="notes" rows="3" placeholder="Your own notes on this paper, just for this project&hellip;">{{ saved_paper.notes or '' }}</textarea>
+            </div>
+            <button type="submit" class="btn btn-secondary btn-sm">Save Notes</button>
+          </form>
+        </div>
+
+        <div class="result-actions" style="margin-top: 0.8rem;">
           <a href="{{ url_for('papers.paper_detail', paper_id=paper.id) }}" class="btn btn-secondary btn-inline">Preview</a>
           <form method="post" action="{{ url_for('papers.remove', project_id=project.id, paper_id=paper.id) }}">
             <button type="submit" class="link-button">Remove</button>
