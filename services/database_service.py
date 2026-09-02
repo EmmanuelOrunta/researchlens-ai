@@ -42,6 +42,19 @@ def init_db():
     _apply_lightweight_migrations()
 
 
+# Every column a model has gained after its table could already exist on someone's
+# disk, keyed by (table, column) -> the SQL type to add it as. Add a new line here
+# whenever a model picks up a new column on an existing table - see the loop below.
+_ADDED_COLUMNS = [
+    ("research_projects", "last_viewed_at", "DATETIME"),
+    ("papers", "summary", "TEXT"),
+    ("papers", "summary_generated_at", "DATETIME"),
+    ("saved_papers", "notes", "TEXT"),
+    ("saved_papers", "relevance_analysis", "TEXT"),
+    ("saved_papers", "relevance_generated_at", "DATETIME"),
+]
+
+
 def _apply_lightweight_migrations():
     """
     create_all() above only creates tables that don't exist yet - it never adds a new
@@ -49,17 +62,27 @@ def _apply_lightweight_migrations():
     with no Alembic, we handle the one case that matters (a model gained a column
     after the database file already existed) by hand: check with PRAGMA table_info,
     and ALTER TABLE ADD COLUMN if it's missing. Safe to call every startup - it's a
-    no-op once the column is there.
+    no-op once every column is already there.
     """
     inspector = inspect(engine)
-    if "research_projects" not in inspector.get_table_names():
-        return  # create_all() just made it fresh, so it already has every column
+    table_names = set(inspector.get_table_names())
+    # Snapshot each table's columns once up front, rather than re-inspecting after
+    # every ALTER TABLE below - keeps this immune to whether SQLite's driver makes a
+    # just-executed, not-yet-committed DDL statement visible to a fresh reflection
+    # query on the same connection.
+    existing_columns_by_table = {
+        table: {col["name"] for col in inspector.get_columns(table)}
+        for table in table_names
+    }
 
-    existing_columns = {col["name"] for col in inspector.get_columns("research_projects")}
-    if "last_viewed_at" not in existing_columns:
-        with engine.connect() as connection:
-            connection.execute(text("ALTER TABLE research_projects ADD COLUMN last_viewed_at DATETIME"))
-            connection.commit()
+    with engine.connect() as connection:
+        for table, column, sql_type in _ADDED_COLUMNS:
+            if table not in table_names:
+                continue  # create_all() just made it fresh, so it already has every column
+            if column not in existing_columns_by_table[table]:
+                connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {sql_type}"))
+                existing_columns_by_table[table].add(column)
+        connection.commit()
 
 
 def get_session():
