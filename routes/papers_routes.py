@@ -22,12 +22,21 @@ from services.paper_service import (
     create_uploaded_paper,
     save_paper_to_project,
     remove_paper_from_project,
-    get_saved_papers_for_project,
+    get_saved_paper_entries_for_project,
+    get_saved_paper,
     get_all_papers_for_user,
     get_projects_for_paper,
     user_can_access_paper,
+    set_paper_summary,
+    update_saved_paper_notes,
+    set_saved_paper_relevance,
 )
 from services.pdf_service import is_allowed_pdf, save_uploaded_pdf, extract_text_from_pdf
+from services.openai_service import (
+    is_configured as openai_is_configured,
+    summarize_paper,
+    analyze_relevance,
+)
 from models.paper import Paper
 
 papers_bp = Blueprint("papers", __name__)
@@ -304,7 +313,10 @@ def paper_detail(paper_id):
     if paper is None:
         abort(404)
 
-    return render_template("paper_detail.html", paper=paper, projects=projects)
+    return render_template(
+        "paper_detail.html", paper=paper, projects=projects,
+        openai_configured=openai_is_configured(),
+    )
 
 
 @papers_bp.route("/papers/<int:paper_id>/file")
@@ -338,11 +350,17 @@ def project_papers(project_id):
     db_session = get_session()
     try:
         project = _get_owned_project_or_404(db_session, project_id)
-        papers = get_saved_papers_for_project(db_session, project_id)
+        entries = [
+            {"paper": paper, "saved_paper": saved_paper}
+            for paper, saved_paper in get_saved_paper_entries_for_project(db_session, project_id)
+        ]
     finally:
         db_session.close()
 
-    return render_template("project_papers.html", project=project, papers=papers)
+    return render_template(
+        "project_papers.html", project=project, entries=entries,
+        openai_configured=openai_is_configured(),
+    )
 
 
 @papers_bp.route("/projects/<int:project_id>/papers/save", methods=["POST"])
@@ -439,3 +457,96 @@ def remove(project_id, paper_id):
 
     flash("Paper removed from this project.", "success")
     return redirect(url_for("main.project_detail", project_id=project_id))
+
+
+# --- Sprint 3: AI summaries, per-project relevance analysis, and per-project notes ---
+
+
+@papers_bp.route("/papers/<int:paper_id>/summarize", methods=["POST"])
+def summarize(paper_id):
+    """
+    Generate (or regenerate) a paper's AI summary. Not scoped to a project - a paper's
+    summary is the same no matter which project you're viewing it from - so this only
+    needs to redirect back to the paper's own preview page.
+    """
+    redirect_response = _require_login()
+    if redirect_response:
+        return redirect_response
+
+    db_session = get_session()
+    try:
+        if not user_can_access_paper(db_session, session["user_id"], paper_id):
+            abort(404)
+        paper = db_session.query(Paper).get(paper_id)
+        if paper is None:
+            abort(404)
+
+        source_text = paper.abstract or paper.extracted_text or ""
+        summary, error = summarize_paper(paper.title, source_text)
+        if error:
+            flash(error, "error")
+        else:
+            set_paper_summary(db_session, paper, summary)
+            flash("AI summary generated.", "success")
+    finally:
+        db_session.close()
+
+    return redirect(url_for("papers.paper_detail", paper_id=paper_id))
+
+
+@papers_bp.route("/projects/<int:project_id>/papers/<int:paper_id>/relevance", methods=["POST"])
+def generate_relevance(project_id, paper_id):
+    """
+    Generate (or regenerate) how relevant this paper is to THIS project specifically -
+    judged against the project's own research question/field/keywords, which is why
+    (unlike summarize() above) this route is scoped to one project.
+    """
+    redirect_response = _require_login()
+    if redirect_response:
+        return redirect_response
+
+    db_session = get_session()
+    try:
+        project = _get_owned_project_or_404(db_session, project_id)
+        saved_paper = get_saved_paper(db_session, project_id, paper_id)
+        if saved_paper is None:
+            abort(404)
+        paper = db_session.query(Paper).get(paper_id)
+        if paper is None:
+            abort(404)
+
+        source_text = paper.abstract or paper.extracted_text or ""
+        analysis, error = analyze_relevance(
+            paper.title, source_text,
+            project.research_question, project.research_field, project.keywords,
+        )
+        if error:
+            flash(error, "error")
+        else:
+            set_saved_paper_relevance(db_session, saved_paper, analysis)
+            flash("Relevance analysis generated.", "success")
+    finally:
+        db_session.close()
+
+    return redirect(url_for("papers.project_papers", project_id=project_id))
+
+
+@papers_bp.route("/projects/<int:project_id>/papers/<int:paper_id>/notes", methods=["POST"])
+def save_notes(project_id, paper_id):
+    """Save this paper's free-form notes within this one project."""
+    redirect_response = _require_login()
+    if redirect_response:
+        return redirect_response
+
+    db_session = get_session()
+    try:
+        _get_owned_project_or_404(db_session, project_id)
+        saved_paper = get_saved_paper(db_session, project_id, paper_id)
+        if saved_paper is None:
+            abort(404)
+        update_saved_paper_notes(db_session, saved_paper, request.form.get("notes", "").strip())
+    finally:
+        db_session.close()
+
+    flash("Notes saved.", "success")
+    return redirect(url_for("papers.project_papers", project_id=project_id))
