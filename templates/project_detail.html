@@ -55,9 +55,9 @@
     <div class="detail-card">
       <div class="detail-card-header">
         <h2>🧠 AI Analyses</h2>
-        <span class="badge-muted">Soon</span>
+        <a href="{{ url_for('papers.project_papers', project_id=project.id) }}" class="badge-link">Open →</a>
       </div>
-      <p class="detail-card-empty">AI-generated paper summaries arrive in Sprint 3.</p>
+      <p class="detail-card-empty">Generate a summary and a relevance analysis for each saved paper - open a paper below to try it.</p>
     </div>
 
     <div class="detail-card">
@@ -65,15 +65,15 @@
         <h2>📋 Literature Matrix</h2>
         <span class="badge-muted">Soon</span>
       </div>
-      <p class="detail-card-empty">A comparison table across your saved papers arrives in Sprint 3.</p>
+      <p class="detail-card-empty">A comparison table across your saved papers arrives in Sprint 4.</p>
     </div>
 
     <div class="detail-card">
       <div class="detail-card-header">
         <h2>📝 Notes</h2>
-        <span class="badge-muted">Soon</span>
+        <a href="{{ url_for('papers.project_papers', project_id=project.id) }}" class="badge-link">Open →</a>
       </div>
-      <p class="detail-card-empty">Free-form notes on papers arrive alongside paper saving.</p>
+      <p class="detail-card-empty">Keep free-form notes on any saved paper, specific to this project.</p>
     </div>
 
     <div class="detail-card">
