@@ -49,6 +49,7 @@ _ADDED_COLUMNS = [
     ("research_projects", "last_viewed_at", "DATETIME"),
     ("papers", "summary", "TEXT"),
     ("papers", "summary_generated_at", "DATETIME"),
+    ("papers", "open_access_pdf_url", "VARCHAR(500)"),
     ("saved_papers", "notes", "TEXT"),
     ("saved_papers", "relevance_analysis", "TEXT"),
     ("saved_papers", "relevance_generated_at", "DATETIME"),
