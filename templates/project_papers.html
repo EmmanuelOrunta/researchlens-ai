@@ -30,7 +30,7 @@
         <div class="detail-card" style="margin-top: 1rem;">
           <div class="detail-card-header">
             <h2>🎯 Relevance to this project</h2>
-            {% if paper.abstract or paper.extracted_text %}
+            {% if paper.abstract or paper.extracted_text or paper.open_access_pdf_url %}
               <form method="post" action="{{ url_for('papers.generate_relevance', project_id=project.id, paper_id=paper.id) }}">
                 <button type="submit" class="btn btn-secondary btn-sm">
                   {{ "Regenerate" if saved_paper.relevance_analysis else "Analyse Relevance" }}
@@ -44,8 +44,10 @@
             <p class="detail-card-empty">Add a free OPENAI_API_KEY in .env to generate this - see .env.example.</p>
           {% elif not (project.research_question or project.research_field or project.keywords) %}
             <p class="detail-card-empty">Add a research question, field, or keywords to this project first (Edit Project).</p>
+          {% elif not (paper.abstract or paper.extracted_text or paper.open_access_pdf_url) %}
+            <p class="detail-card-empty">No abstract, extracted text, or open-access PDF to analyse.</p>
           {% elif not (paper.abstract or paper.extracted_text) %}
-            <p class="detail-card-empty">No abstract or extracted text to analyse.</p>
+            <p class="detail-card-empty">No abstract available - we'll read this paper's open-access PDF instead when you click Analyse Relevance.</p>
           {% else %}
             <p class="detail-card-empty">Not generated yet.</p>
           {% endif %}
