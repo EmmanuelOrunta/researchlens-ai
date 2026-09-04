@@ -668,8 +668,16 @@ a.project-card-link:hover {
 .paper-list-actions a:hover { text-decoration: underline; }
 .paper-remove-form { margin: 0; }
 .link-button {
+  /* A <button> keeps its browser-native pill/box chrome on some platforms (notably
+     Windows Chrome/Edge) even after background/border are overridden below - without
+     appearance: none, that leaves a faint outline sitting behind the text. */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
   background: none;
   border: none;
+  border-radius: 0;
+  box-shadow: none;
   padding: 0;
   color: var(--color-danger);
   font-size: 0.82rem;
@@ -678,6 +686,7 @@ a.project-card-link:hover {
   font-family: inherit;
 }
 .link-button:hover { text-decoration: underline; }
+.link-button:focus { outline: 2px solid var(--color-danger); outline-offset: 2px; }
 
 .search-form { display: flex; gap: 0.6rem; max-width: 640px; margin-bottom: 1rem; }
 .search-input {
