@@ -12,7 +12,11 @@ import os
 import requests
 
 SEARCH_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
-FIELDS = "title,authors,year,abstract,externalIds,url"
+# openAccessPdf: when Semantic Scholar knows of a free, legal full-text copy of this
+# paper (not every paper has one - most paywalled journal articles won't), it comes
+# back here as {"url": "...", "status": "..."}. Used as a last-resort fallback for
+# papers with no abstract - see paper_service.py's get_or_fetch_source_text().
+FIELDS = "title,authors,year,abstract,externalIds,url,openAccessPdf"
 REQUEST_TIMEOUT_SECONDS = 10
 
 # The /graph/v1/paper/search endpoint (the "relevance search" endpoint this file calls,
@@ -69,6 +73,7 @@ def search_papers(query: str, limit: int = 10):
             a.get("name", "") for a in (paper.get("authors") or []) if a.get("name")
         )
         external_ids = paper.get("externalIds") or {}
+        open_access_pdf = paper.get("openAccessPdf") or {}
 
         results.append({
             "external_id": paper.get("paperId"),
@@ -78,6 +83,7 @@ def search_papers(query: str, limit: int = 10):
             "abstract": paper.get("abstract"),
             "doi": external_ids.get("DOI"),
             "url": paper.get("url"),
+            "open_access_pdf_url": open_access_pdf.get("url"),
         })
 
     return results
