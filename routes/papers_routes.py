@@ -30,6 +30,7 @@ from services.paper_service import (
     set_paper_summary,
     update_saved_paper_notes,
     set_saved_paper_relevance,
+    get_or_fetch_source_text,
 )
 from services.pdf_service import is_allowed_pdf, save_uploaded_pdf, extract_text_from_pdf
 from services.openai_service import (
@@ -389,6 +390,7 @@ def save_from_search(project_id):
                 "doi": request.form.get("doi") or None,
                 "url": request.form.get("url") or None,
                 "source": request.form.get("source") or "semantic_scholar",
+                "open_access_pdf_url": request.form.get("open_access_pdf_url") or None,
             })
 
         save_paper_to_project(db_session, project.id, paper.id)
@@ -481,13 +483,16 @@ def summarize(paper_id):
         if paper is None:
             abort(404)
 
-        source_text = paper.abstract or paper.extracted_text or ""
-        summary, error = summarize_paper(paper.title, source_text)
-        if error:
-            flash(error, "error")
+        source_text, text_error = get_or_fetch_source_text(db_session, paper)
+        if text_error:
+            flash(text_error, "error")
         else:
-            set_paper_summary(db_session, paper, summary)
-            flash("AI summary generated.", "success")
+            summary, error = summarize_paper(paper.title, source_text)
+            if error:
+                flash(error, "error")
+            else:
+                set_paper_summary(db_session, paper, summary)
+                flash("AI summary generated.", "success")
     finally:
         db_session.close()
 
@@ -515,16 +520,19 @@ def generate_relevance(project_id, paper_id):
         if paper is None:
             abort(404)
 
-        source_text = paper.abstract or paper.extracted_text or ""
-        analysis, error = analyze_relevance(
-            paper.title, source_text,
-            project.research_question, project.research_field, project.keywords,
-        )
-        if error:
-            flash(error, "error")
+        source_text, text_error = get_or_fetch_source_text(db_session, paper)
+        if text_error:
+            flash(text_error, "error")
         else:
-            set_saved_paper_relevance(db_session, saved_paper, analysis)
-            flash("Relevance analysis generated.", "success")
+            analysis, error = analyze_relevance(
+                paper.title, source_text,
+                project.research_question, project.research_field, project.keywords,
+            )
+            if error:
+                flash(error, "error")
+            else:
+                set_saved_paper_relevance(db_session, saved_paper, analysis)
+                flash("Relevance analysis generated.", "success")
     finally:
         db_session.close()
 
