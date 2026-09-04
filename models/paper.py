@@ -33,6 +33,14 @@ class Paper(Base):
     external_id = Column(String(255), nullable=True, index=True)   # Semantic Scholar's paperId, if applicable
     file_path = Column(String(500), nullable=True)                 # path to the saved PDF, if uploaded
     extracted_text = Column(Text, nullable=True)                   # text pulled from the PDF, if uploaded
+    # A direct link to a free, legally-open copy of this paper, IF the source API says
+    # one exists (Semantic Scholar's openAccessPdf.url, or OpenAlex's open_access.oa_url
+    # - see the two search services). NULL for a paywalled paper with no open-access
+    # copy. get_or_fetch_source_text() in paper_service.py uses this as a last resort,
+    # when there's no abstract, to fetch and extract real full text to analyse - this
+    # app never fetches a paywalled/restricted page, only a link the source itself
+    # already marked as freely available.
+    open_access_pdf_url = Column(String(500), nullable=True)
     summary = Column(Text, nullable=True)                          # AI-generated summary (Sprint 3), NULL until generated
     summary_generated_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
