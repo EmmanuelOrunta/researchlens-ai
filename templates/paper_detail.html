@@ -34,6 +34,10 @@
         {{ paper.extracted_text[:1000] }}{% if paper.extracted_text|length > 1000 %}…{% endif %}
       </p>
     </div>
+  {% elif paper.open_access_pdf_url %}
+    <p class="detail-card-empty" style="margin-bottom: 1.5rem;">
+      No abstract available, but this paper has an open-access PDF - the AI summary below will read that instead.
+    </p>
   {% else %}
     <p class="detail-card-empty" style="margin-bottom: 1.5rem;">No abstract or extracted text available for this paper.</p>
   {% endif %}
@@ -41,7 +45,7 @@
   <div class="detail-card" style="margin-bottom: 1.5rem;">
     <div class="detail-card-header">
       <h2>🧠 AI Summary</h2>
-      {% if paper.abstract or paper.extracted_text %}
+      {% if paper.abstract or paper.extracted_text or paper.open_access_pdf_url %}
         <form method="post" action="{{ url_for('papers.summarize', paper_id=paper.id) }}">
           <button type="submit" class="btn btn-secondary btn-sm">
             {{ "Regenerate" if paper.summary else "Generate Summary" }}
@@ -53,8 +57,8 @@
       <p class="detail-card-body">{{ paper.summary }}</p>
     {% elif not openai_configured %}
       <p class="detail-card-empty">Add a free OPENAI_API_KEY in .env to generate an AI summary - see .env.example.</p>
-    {% elif not (paper.abstract or paper.extracted_text) %}
-      <p class="detail-card-empty">No abstract or extracted text to summarize.</p>
+    {% elif not (paper.abstract or paper.extracted_text or paper.open_access_pdf_url) %}
+      <p class="detail-card-empty">No abstract, extracted text, or open-access PDF to summarize.</p>
     {% else %}
       <p class="detail-card-empty">Not generated yet.</p>
     {% endif %}
