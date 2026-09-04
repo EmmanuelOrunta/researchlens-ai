@@ -68,9 +68,27 @@ def search_papers(query: str, limit: int = 10):
             "abstract": _rebuild_abstract(work.get("abstract_inverted_index")),
             "doi": doi,
             "url": work.get("id"),
+            "open_access_pdf_url": _open_access_pdf_url(work),
         })
 
     return results
+
+
+def _open_access_pdf_url(work):
+    """
+    A direct link to a free, legal full-text PDF, if OpenAlex knows of one - not every
+    paper has one (most paywalled journal articles won't). OpenAlex includes this in
+    every work by default (no extra fields param needed, unlike Semantic Scholar):
+    `open_access.oa_url` is the general open-access link; `best_oa_location.pdf_url` is
+    sometimes populated even when oa_url isn't, so it's checked as a fallback. Used as
+    a last resort for papers with no abstract - see paper_service.py's
+    get_or_fetch_source_text().
+    """
+    open_access = work.get("open_access") or {}
+    if open_access.get("oa_url"):
+        return open_access["oa_url"]
+    best_oa_location = work.get("best_oa_location") or {}
+    return best_oa_location.get("pdf_url")
 
 
 def _rebuild_abstract(inverted_index):
