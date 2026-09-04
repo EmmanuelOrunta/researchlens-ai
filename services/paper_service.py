@@ -9,6 +9,7 @@ from datetime import datetime
 from models.paper import Paper
 from models.saved_paper import SavedPaper
 from models.project import ResearchProject
+from services.pdf_service import fetch_and_extract_text_from_url
 
 
 def get_paper_by_external_id(session, external_id: str):
@@ -39,6 +40,7 @@ def create_paper_from_search_result(session, data: dict) -> Paper:
         url=data.get("url"),
         source=data.get("source") or "semantic_scholar",
         external_id=data.get("external_id"),
+        open_access_pdf_url=data.get("open_access_pdf_url"),
     )
     session.add(paper)
     session.commit()
@@ -211,6 +213,44 @@ def set_saved_paper_relevance(session, saved_paper: SavedPaper, analysis: str) -
     session.commit()
     session.refresh(saved_paper)
     return saved_paper
+
+
+def get_or_fetch_source_text(session, paper: Paper):
+    """
+    Whatever text Sprint 3's AI features (summarize_paper(), analyze_relevance()) can
+    actually read for this paper - preferring what's already stored, only reaching out
+    to the network as a last resort:
+
+      1. paper.abstract, if the source API provided one
+      2. paper.extracted_text, if this was a direct upload (or already fetched below,
+         on a previous call - so this only ever downloads a given paper's PDF once)
+      3. otherwise, if the source API told us this paper has an open-access copy
+         (paper.open_access_pdf_url - see semantic_scholar_service.py and
+         openalex_service.py), download and extract it via
+         pdf_service.fetch_and_extract_text_from_url()
+
+    Returns (text, error) - exactly one is set. text is never an empty string (that's
+    treated as an error case too), so callers can rely on `if text:`.
+    """
+    if paper.abstract:
+        return paper.abstract, None
+    if paper.extracted_text:
+        return paper.extracted_text, None
+
+    if not paper.open_access_pdf_url:
+        return None, (
+            "This paper has no abstract, and its source didn't provide an "
+            "open-access PDF to read instead."
+        )
+
+    text, fetch_error = fetch_and_extract_text_from_url(paper.open_access_pdf_url)
+    if fetch_error:
+        return None, fetch_error
+
+    paper.extracted_text = text
+    session.commit()
+    session.refresh(paper)
+    return text, None
 
 
 def count_summarized_papers_for_user(session, user_id: int) -> int:
