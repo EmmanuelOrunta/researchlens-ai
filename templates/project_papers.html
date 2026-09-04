@@ -64,7 +64,7 @@
         <div class="result-actions" style="margin-top: 0.8rem;">
           <a href="{{ url_for('papers.paper_detail', paper_id=paper.id) }}" class="btn btn-secondary btn-inline">Preview</a>
           <form method="post" action="{{ url_for('papers.remove', project_id=project.id, paper_id=paper.id) }}">
-            <button type="submit" class="link-button">Remove</button>
+            <button type="submit" class="btn btn-danger-ghost btn-inline">Remove</button>
           </form>
         </div>
       </div>
