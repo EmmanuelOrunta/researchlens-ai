@@ -10,7 +10,8 @@
 import os
 import re
 import math
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort, send_file
+import json
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort, send_file, Response
 
 from services.database_service import get_session
 from services.project_service import get_project_for_user, get_projects_for_user
@@ -35,8 +36,8 @@ from services.paper_service import (
 from services.pdf_service import is_allowed_pdf, save_uploaded_pdf, extract_text_from_pdf
 from services.openai_service import (
     is_configured as openai_is_configured,
-    summarize_paper,
-    analyze_relevance,
+    stream_summarize_paper,
+    stream_analyze_relevance,
 )
 from models.paper import Paper
 
@@ -364,6 +365,36 @@ def project_papers(project_id):
     )
 
 
+@papers_bp.route("/projects/<int:project_id>/papers/<int:paper_id>", methods=["GET"])
+def project_paper_detail(project_id, paper_id):
+    """
+    A single saved paper's own page within this project - its AI summary, this
+    project's relevance analysis, and this project's notes, all together, without
+    scrolling past every other saved paper first. This is the destination
+    project_papers.html's compact list links to (Sprint 3, Feature 1).
+    """
+    redirect_response = _require_login()
+    if redirect_response:
+        return redirect_response
+
+    db_session = get_session()
+    try:
+        project = _get_owned_project_or_404(db_session, project_id)
+        saved_paper = get_saved_paper(db_session, project_id, paper_id)
+        if saved_paper is None:
+            abort(404)
+        paper = db_session.query(Paper).get(paper_id)
+        if paper is None:
+            abort(404)
+    finally:
+        db_session.close()
+
+    return render_template(
+        "project_paper_detail.html", project=project, paper=paper, saved_paper=saved_paper,
+        openai_configured=openai_is_configured(),
+    )
+
+
 @papers_bp.route("/projects/<int:project_id>/papers/save", methods=["POST"])
 def save_from_search(project_id):
     redirect_response = _require_login()
@@ -464,12 +495,29 @@ def remove(project_id, paper_id):
 # --- Sprint 3: AI summaries, per-project relevance analysis, and per-project notes ---
 
 
-@papers_bp.route("/papers/<int:paper_id>/summarize", methods=["POST"])
-def summarize(paper_id):
+@papers_bp.route("/papers/<int:paper_id>/summarize/stream", methods=["POST"])
+def summarize_stream(paper_id):
     """
-    Generate (or regenerate) a paper's AI summary. Not scoped to a project - a paper's
-    summary is the same no matter which project you're viewing it from - so this only
-    needs to redirect back to the paper's own preview page.
+    Streams a paper's AI summary live, one chunk of text at a time, so the page can
+    show it "typing" in the way ChatGPT does instead of appearing all at once. Not
+    scoped to a project - a paper's summary is the same no matter which project you're
+    viewing it from.
+
+    Ships the response as NDJSON (newline-delimited JSON: one JSON object per line) -
+    see static/js/app.js's [data-stream-url] handler for how the page reads this
+    incrementally. Each line is one of:
+      {"delta": "..."}            - append this chunk of text
+      {"error": "..."}            - show this message instead; nothing was saved
+      {"done": true, "text": "…"} - generation finished; this is the full text
+
+    Uses a two-phase session lifecycle because Flask only starts iterating a streamed
+    Response's generator AFTER this view function has already returned - by which
+    point any session opened here would already be closed. Phase one (below,
+    synchronous, before the Response is built) does the access check and resolves the
+    source text using a short-lived session. Phase two (inside generate(), lazily run
+    once this function returns) opens its OWN fresh session only at the moment it
+    needs to persist the finished summary, re-querying the paper by id rather than
+    reusing phase one's already-closed object.
     """
     redirect_response = _require_login()
     if redirect_response:
@@ -482,29 +530,37 @@ def summarize(paper_id):
         paper = db_session.query(Paper).get(paper_id)
         if paper is None:
             abort(404)
-
+        title = paper.title
         source_text, text_error = get_or_fetch_source_text(db_session, paper)
-        if text_error:
-            flash(text_error, "error")
-        else:
-            summary, error = summarize_paper(paper.title, source_text)
-            if error:
-                flash(error, "error")
-            else:
-                set_paper_summary(db_session, paper, summary)
-                flash("AI summary generated.", "success")
     finally:
         db_session.close()
 
-    return redirect(url_for("papers.paper_detail", paper_id=paper_id))
+    def generate():
+        if text_error:
+            yield json.dumps({"error": text_error}) + "\n"
+            return
+        for event in stream_summarize_paper(title, source_text):
+            if event.get("done"):
+                write_session = get_session()
+                try:
+                    fresh_paper = write_session.query(Paper).get(paper_id)
+                    if fresh_paper is not None:
+                        set_paper_summary(write_session, fresh_paper, event["text"])
+                finally:
+                    write_session.close()
+            yield json.dumps(event) + "\n"
+
+    return Response(generate(), mimetype="application/x-ndjson")
 
 
-@papers_bp.route("/projects/<int:project_id>/papers/<int:paper_id>/relevance", methods=["POST"])
-def generate_relevance(project_id, paper_id):
+@papers_bp.route("/projects/<int:project_id>/papers/<int:paper_id>/relevance/stream", methods=["POST"])
+def generate_relevance_stream(project_id, paper_id):
     """
-    Generate (or regenerate) how relevant this paper is to THIS project specifically -
-    judged against the project's own research question/field/keywords, which is why
-    (unlike summarize() above) this route is scoped to one project.
+    Streams how relevant this paper is to THIS project specifically, live, one chunk
+    at a time - judged against the project's own research question/field/keywords,
+    which is why (unlike summarize_stream() above) this route is scoped to one
+    project. See summarize_stream() above for the NDJSON event shapes and the
+    two-phase session lifecycle this follows.
     """
     redirect_response = _require_login()
     if redirect_response:
@@ -519,24 +575,32 @@ def generate_relevance(project_id, paper_id):
         paper = db_session.query(Paper).get(paper_id)
         if paper is None:
             abort(404)
-
+        paper_title = paper.title
+        research_question = project.research_question
+        research_field = project.research_field
+        keywords = project.keywords
         source_text, text_error = get_or_fetch_source_text(db_session, paper)
-        if text_error:
-            flash(text_error, "error")
-        else:
-            analysis, error = analyze_relevance(
-                paper.title, source_text,
-                project.research_question, project.research_field, project.keywords,
-            )
-            if error:
-                flash(error, "error")
-            else:
-                set_saved_paper_relevance(db_session, saved_paper, analysis)
-                flash("Relevance analysis generated.", "success")
     finally:
         db_session.close()
 
-    return redirect(url_for("papers.project_papers", project_id=project_id))
+    def generate():
+        if text_error:
+            yield json.dumps({"error": text_error}) + "\n"
+            return
+        for event in stream_analyze_relevance(
+            paper_title, source_text, research_question, research_field, keywords,
+        ):
+            if event.get("done"):
+                write_session = get_session()
+                try:
+                    fresh_saved_paper = get_saved_paper(write_session, project_id, paper_id)
+                    if fresh_saved_paper is not None:
+                        set_saved_paper_relevance(write_session, fresh_saved_paper, event["text"])
+                finally:
+                    write_session.close()
+            yield json.dumps(event) + "\n"
+
+    return Response(generate(), mimetype="application/x-ndjson")
 
 
 @papers_bp.route("/projects/<int:project_id>/papers/<int:paper_id>/notes", methods=["POST"])
@@ -557,4 +621,4 @@ def save_notes(project_id, paper_id):
         db_session.close()
 
     flash("Notes saved.", "success")
-    return redirect(url_for("papers.project_papers", project_id=project_id))
+    return redirect(url_for("papers.project_paper_detail", project_id=project_id, paper_id=paper_id))
