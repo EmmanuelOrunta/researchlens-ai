@@ -42,57 +42,93 @@ def _client() -> OpenAI:
     return OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 
-def _run(system_prompt: str, user_content: str):
+def _stream(system_prompt: str, user_content: str):
     """
-    Shared plumbing for both features below: confirms a key is configured, calls the
-    Responses API (OpenAI's current recommended API for new integrations, in place of
-    the older Chat Completions API), and turns any failure into a (None, message) pair
-    the routes can flash straight to the user instead of a stack trace.
+    Shared plumbing for both features below - the streaming counterpart of what used
+    to be a single request/response call. Confirms a key is configured, opens a
+    streaming call to the Responses API, and yields plain dicts a route can forward
+    live to the browser for a ChatGPT-style "typing" effect (see
+    routes/papers_routes.py's summarize_stream() / generate_relevance_stream(), and
+    static/js/app.js for how the page consumes this):
 
-    Returns (text, error) - exactly one of the two is ever set.
+      - {"delta": "..."} for each incremental chunk of text as OpenAI generates it
+      - {"error": "..."} if anything goes wrong, before or during generation - a
+        caller should NOT persist anything to the database when this is yielded
+      - {"done": True, "text": "<full text>"} once generation completes successfully -
+        a caller should persist `text` at this point
+
+    Deltas are accumulated manually into the final text (rather than relying on the
+    SDK's own final-response helper) so this only depends on the one event shape
+    ("response.output_text.delta") actually needed here.
     """
     if not is_configured():
-        return None, "Add a free OPENAI_API_KEY in .env to use AI analysis - see .env.example."
+        yield {"error": "Add a free OPENAI_API_KEY in .env to use AI analysis - see .env.example."}
+        return
 
+    full_text_parts = []
     try:
         client = _client()
-        response = client.responses.create(
+        with client.responses.stream(
             model=MODEL,
             input=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_content[:MAX_INPUT_CHARS]},
             ],
-        )
-        text = (response.output_text or "").strip()
-        if not text:
-            return None, "OpenAI returned an empty response - try again."
-        return text, None
+        ) as stream:
+            for event in stream:
+                event_type = getattr(event, "type", "")
+                if event_type == "response.output_text.delta":
+                    delta = getattr(event, "delta", "") or ""
+                    if delta:
+                        full_text_parts.append(delta)
+                        yield {"delta": delta}
+                elif event_type in ("error", "response.error"):
+                    # The exact event type/attribute names for a mid-stream error
+                    # aren't pinned down as precisely in OpenAI's docs as the success
+                    # path is, so this checks both spellings seen in their examples
+                    # rather than betting on one.
+                    message = getattr(event, "message", None) or "an error"
+                    print(f"[openai_service] stream reported an error event: {message}")
+                    yield {"error": "OpenAI reported an error while generating - try again."}
+                    return
+                # Other event types (response.created, response.output_item.added,
+                # response.completed, etc.) are just progress markers this doesn't
+                # need - only the text deltas and a possible error matter here.
     except OpenAIError as error:
         # Printing here means the REAL reason (invalid key, rate limit, no credit,
         # OpenAI down, etc.) shows up in your terminal where `python app.py` is
         # running, instead of disappearing silently - worth checking there if this
         # keeps failing.
-        print(f"[openai_service] request failed: {error}")
-        return None, (
+        print(f"[openai_service] streaming request failed: {error}")
+        yield {"error": (
             "OpenAI didn't respond to this request (this usually means an invalid "
             "key, no billing set up, or a rate limit) - check the terminal running "
             "`python app.py` for the real error, and try again."
-        )
+        )}
+        return
     except Exception as error:
-        print(f"[openai_service] unexpected error: {error}")
-        return None, "Something went wrong talking to OpenAI - try again."
+        print(f"[openai_service] unexpected streaming error: {error}")
+        yield {"error": "Something went wrong talking to OpenAI - try again."}
+        return
+
+    full_text = "".join(full_text_parts).strip()
+    if not full_text:
+        yield {"error": "OpenAI returned an empty response - try again."}
+        return
+    yield {"done": True, "text": full_text}
 
 
-def summarize_paper(title: str, text: str):
+def stream_summarize_paper(title: str, text: str):
     """
     Summarize a paper's abstract (or extracted PDF text, for an upload) into a few
-    plain-language sentences. `text` should be paper.abstract or paper.extracted_text -
-    whichever the caller has; this function doesn't know or care which.
-
-    Returns (summary, error) - summary is None if error is set.
+    plain-language sentences, yielded incrementally as it's generated - see _stream()
+    above for the exact event shapes. `text` should be paper.abstract or
+    paper.extracted_text - whichever the caller has; this function doesn't know or
+    care which.
     """
     if not (text or "").strip():
-        return None, "This paper has no abstract or extracted text to summarize."
+        yield {"error": "This paper has no abstract or extracted text to summarize."}
+        return
 
     system_prompt = (
         "You summarize academic research papers for a student doing a literature "
@@ -102,27 +138,28 @@ def summarize_paper(title: str, text: str):
         "markdown formatting."
     )
     user_content = f"Title: {title}\n\nAbstract/text:\n{text}"
-    return _run(system_prompt, user_content)
+    yield from _stream(system_prompt, user_content)
 
 
-def analyze_relevance(paper_title: str, paper_text: str, research_question: str,
-                       research_field: str, keywords: str):
+def stream_analyze_relevance(paper_title: str, paper_text: str, research_question: str,
+                              research_field: str, keywords: str):
     """
-    Assess how relevant a saved paper is to a project's research question. This is
-    intentionally scoped to one saved paper against one project's stated question/
-    field/keywords - not a search across the whole library - matching the project
-    plan's boundary that this app assists a researcher's own judgement rather than
-    acting as an autonomous one.
-
-    Returns (analysis, error) - analysis is None if error is set.
+    Assess how relevant a saved paper is to a project's research question, yielded
+    incrementally as it's generated - see _stream() above for the exact event shapes.
+    This is intentionally scoped to one saved paper against one project's stated
+    question/field/keywords - not a search across the whole library - matching the
+    project plan's boundary that this app assists a researcher's own judgement rather
+    than acting as an autonomous one.
     """
     if not (research_question or research_field or keywords):
-        return None, (
+        yield {"error": (
             "Add a research question, field, or keywords to this project first "
             "(Edit Project) so relevance has something to be judged against."
-        )
+        )}
+        return
     if not (paper_text or "").strip():
-        return None, "This paper has no abstract or extracted text to analyse."
+        yield {"error": "This paper has no abstract or extracted text to analyse."}
+        return
 
     system_prompt = (
         "You help a student doing a literature review judge how relevant a paper is "
@@ -143,4 +180,4 @@ def analyze_relevance(paper_title: str, paper_text: str, research_question: str,
         f"Paper title: {paper_title}\n"
         f"Paper abstract/text:\n{paper_text}"
     )
-    return _run(system_prompt, user_content)
+    yield from _stream(system_prompt, user_content)
