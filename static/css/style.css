@@ -613,6 +613,23 @@ a.project-card-link:hover {
 .detail-card-header h2 { font-size: 1rem; font-weight: 700; margin: 0; font-family: var(--font-display); }
 .detail-card-body { color: #3A3528; line-height: 1.55; margin: 0; }
 .detail-card-empty { color: var(--color-text-muted); font-size: 0.9rem; margin: 0; font-style: italic; }
+.detail-card-empty.stream-error { color: var(--color-danger, #B3261E); font-style: normal; }
+
+/* Blinking cursor shown at the end of AI Summary / Relevance Analysis text while it's
+   streaming in live, ChatGPT-style - see static/js/app.js's [data-stream-url] handler. */
+.typing-cursor {
+  display: inline-block;
+  width: 0.5em;
+  height: 1em;
+  margin-left: 1px;
+  background: currentColor;
+  vertical-align: text-bottom;
+  animation: rlens-blink 0.9s steps(1) infinite;
+}
+@keyframes rlens-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
 
 .badge-muted {
   font-size: 0.68rem;
