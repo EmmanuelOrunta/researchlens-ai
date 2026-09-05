@@ -1,0 +1,109 @@
+{% extends "base_app.html" %}
+{% block title %}{{ paper.title }} · {{ project.title }}{% endblock %}
+{% block content %}
+  <a href="{{ url_for('papers.project_papers', project_id=project.id) }}" class="back-link">← Back to Saved Papers</a>
+
+  <h1 class="page-title">{{ paper.title }}</h1>
+  <p class="page-subtitle">
+    {{ paper.authors or "Unknown authors" }}{% if paper.year %} &middot; {{ paper.year }}{% endif %}
+    &middot;
+    <span class="badge-muted">{{ "Uploaded PDF" if paper.source == "upload" else ("OpenAlex" if paper.source == "openalex" else "Semantic Scholar") }}</span>
+  </p>
+
+  <div class="result-actions" style="margin-bottom: 1.5rem;">
+    {% if paper.source == "upload" %}
+      <a href="{{ url_for('papers.paper_file', paper_id=paper.id) }}" target="_blank" rel="noopener" class="btn btn-inline">
+        Open PDF
+      </a>
+    {% elif paper.url %}
+      <a href="{{ paper.url }}" target="_blank" rel="noopener" class="btn btn-inline">
+        View Original Source
+      </a>
+    {% endif %}
+    <form method="post" action="{{ url_for('papers.remove', project_id=project.id, paper_id=paper.id) }}">
+      <button type="submit" class="btn btn-danger-ghost btn-inline">Remove from Project</button>
+    </form>
+  </div>
+
+  {% if paper.abstract %}
+    <div class="detail-card" style="margin-bottom: 1.5rem;">
+      <div class="detail-card-header"><h2>Abstract</h2></div>
+      <p class="detail-card-body">{{ paper.abstract }}</p>
+    </div>
+  {% elif paper.extracted_text %}
+    <div class="detail-card" style="margin-bottom: 1.5rem;">
+      <div class="detail-card-header"><h2>Extracted text (preview)</h2></div>
+      <p class="detail-card-body">
+        {{ paper.extracted_text[:1000] }}{% if paper.extracted_text|length > 1000 %}…{% endif %}
+      </p>
+    </div>
+  {% elif paper.open_access_pdf_url %}
+    <p class="detail-card-empty" style="margin-bottom: 1.5rem;">
+      No abstract available, but this paper has an open-access PDF - the AI summary and relevance analysis below will read that instead.
+    </p>
+  {% else %}
+    <p class="detail-card-empty" style="margin-bottom: 1.5rem;">No abstract or extracted text available for this paper.</p>
+  {% endif %}
+
+  <div class="detail-card" style="margin-bottom: 1.5rem;">
+    <div class="detail-card-header">
+      <h2>🧠 AI Summary</h2>
+      {% if paper.abstract or paper.extracted_text or paper.open_access_pdf_url %}
+        <button type="button" class="btn btn-secondary btn-sm"
+                data-stream-url="{{ url_for('papers.summarize_stream', paper_id=paper.id) }}"
+                data-target="summary-content">
+          {{ "Regenerate" if paper.summary else "Generate Summary" }}
+        </button>
+      {% endif %}
+    </div>
+    <div id="summary-content">
+      {% if paper.summary %}
+        <p class="detail-card-body">{{ paper.summary }}</p>
+      {% elif not openai_configured %}
+        <p class="detail-card-empty">Add a free OPENAI_API_KEY in .env to generate an AI summary - see .env.example.</p>
+      {% elif not (paper.abstract or paper.extracted_text or paper.open_access_pdf_url) %}
+        <p class="detail-card-empty">No abstract, extracted text, or open-access PDF to summarize.</p>
+      {% else %}
+        <p class="detail-card-empty">Not generated yet.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="detail-card" style="margin-bottom: 1.5rem;">
+    <div class="detail-card-header">
+      <h2>🎯 Relevance to this project</h2>
+      {% if paper.abstract or paper.extracted_text or paper.open_access_pdf_url %}
+        <button type="button" class="btn btn-secondary btn-sm"
+                data-stream-url="{{ url_for('papers.generate_relevance_stream', project_id=project.id, paper_id=paper.id) }}"
+                data-target="relevance-content">
+          {{ "Regenerate" if saved_paper.relevance_analysis else "Analyse Relevance" }}
+        </button>
+      {% endif %}
+    </div>
+    <div id="relevance-content">
+      {% if saved_paper.relevance_analysis %}
+        <p class="detail-card-body">{{ saved_paper.relevance_analysis }}</p>
+      {% elif not openai_configured %}
+        <p class="detail-card-empty">Add a free OPENAI_API_KEY in .env to generate this - see .env.example.</p>
+      {% elif not (project.research_question or project.research_field or project.keywords) %}
+        <p class="detail-card-empty">Add a research question, field, or keywords to this project first (Edit Project).</p>
+      {% elif not (paper.abstract or paper.extracted_text or paper.open_access_pdf_url) %}
+        <p class="detail-card-empty">No abstract, extracted text, or open-access PDF to analyse.</p>
+      {% elif not (paper.abstract or paper.extracted_text) %}
+        <p class="detail-card-empty">No abstract available - we'll read this paper's open-access PDF instead when you click Analyse Relevance.</p>
+      {% else %}
+        <p class="detail-card-empty">Not generated yet.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="detail-card">
+    <div class="detail-card-header"><h2>📝 Notes</h2></div>
+    <form method="post" action="{{ url_for('papers.save_notes', project_id=project.id, paper_id=paper.id) }}" class="form-narrow" style="margin: 0;">
+      <div class="field" style="margin-bottom: 0.6rem;">
+        <textarea name="notes" rows="5" placeholder="Your own notes on this paper, just for this project&hellip;">{{ saved_paper.notes or '' }}</textarea>
+      </div>
+      <button type="submit" class="btn btn-secondary btn-sm">Save Notes</button>
+    </form>
+  </div>
+{% endblock %}
