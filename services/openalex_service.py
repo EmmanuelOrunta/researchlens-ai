@@ -10,10 +10,19 @@
 # way - the search results page and paper_service.py don't need to know or care which
 # of the two sources a result came from.
 
+import time
 import requests
 
 SEARCH_URL = "https://api.openalex.org/works"
 REQUEST_TIMEOUT_SECONDS = 10
+
+# OpenAlex doesn't rate-limit reasonable use the way Semantic Scholar's shared free
+# tier does, but a request can still occasionally hit a transient network blip or a
+# brief 5xx on their end. A couple of quick retries clears most of those without the
+# user ever seeing an error - see semantic_scholar_service.py's search_papers() for
+# the same idea applied to that source's much more common 429s.
+MAX_ATTEMPTS = 2
+RETRY_BACKOFF_SECONDS = 1.0
 
 # OpenAlex's own ceiling on per-page - asking for more just gets clamped/rejected
 # server-side. OpenAlex is far more generous than Semantic Scholar here (no per-key
@@ -33,17 +42,29 @@ def search_papers(query: str, limit: int = 10):
     semantic_scholar_service.search_papers(): a list of dicts on success (possibly
     empty), or None if the request failed outright.
     """
-    try:
-        response = requests.get(
-            SEARCH_URL,
-            params={"search": query, "per-page": min(limit, MAX_LIMIT)},
-            headers=HEADERS,
-            timeout=REQUEST_TIMEOUT_SECONDS,
-        )
-        response.raise_for_status()
-        payload = response.json()
-    except (requests.RequestException, ValueError) as error:
-        print(f"[openalex_service] search failed: {error}")
+    payload = None
+    for attempt in range(MAX_ATTEMPTS):
+        is_last_attempt = attempt == MAX_ATTEMPTS - 1
+        try:
+            response = requests.get(
+                SEARCH_URL,
+                params={"search": query, "per-page": min(limit, MAX_LIMIT)},
+                headers=HEADERS,
+                timeout=REQUEST_TIMEOUT_SECONDS,
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except (requests.RequestException, ValueError) as error:
+            if is_last_attempt:
+                print(f"[openalex_service] search failed after {MAX_ATTEMPTS} attempt(s): {error}")
+                return None
+            print(f"[openalex_service] request failed ({error}) - retrying "
+                  f"(attempt {attempt + 1}/{MAX_ATTEMPTS})")
+            time.sleep(RETRY_BACKOFF_SECONDS * (attempt + 1))
+            continue
+        break  # got a usable payload - stop retrying
+
+    if payload is None:
         return None
 
     results = []
