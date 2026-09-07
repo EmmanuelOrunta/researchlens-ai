@@ -45,7 +45,10 @@
 
         <div class="nav-group">
           <div class="nav-group-label">Analysis</div>
-          <span class="nav-item disabled"><span class="nav-item-label"><span class="nav-icon">🧠</span> AI Paper Analysis</span> <span class="soon-badge">Soon</span></span>
+          <a href="{{ url_for('papers.ai_analysis') }}"
+             class="nav-item {{ 'active' if request.endpoint == 'papers.ai_analysis' else '' }}">
+            <span class="nav-item-label"><span class="nav-icon">🧠</span> AI Paper Analysis</span>
+          </a>
           <span class="nav-item disabled"><span class="nav-item-label"><span class="nav-icon">📋</span> Literature Matrix</span> <span class="soon-badge">Soon</span></span>
           <span class="nav-item disabled"><span class="nav-item-label"><span class="nav-icon">💬</span> Ask Your Literature</span> <span class="soon-badge">Soon</span></span>
           <span class="nav-item disabled"><span class="nav-item-label"><span class="nav-icon">🧭</span> Research Gaps</span> <span class="soon-badge">Soon</span></span>
