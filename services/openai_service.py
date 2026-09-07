@@ -118,26 +118,60 @@ def _stream(system_prompt: str, user_content: str):
     yield {"done": True, "text": full_text}
 
 
-def stream_summarize_paper(title: str, text: str):
+def stream_summarize_paper(title: str, authors: str, year, text: str):
     """
-    Summarize a paper's abstract (or extracted PDF text, for an upload) into a few
-    plain-language sentences, yielded incrementally as it's generated - see _stream()
-    above for the exact event shapes. `text` should be paper.abstract or
-    paper.extracted_text - whichever the caller has; this function doesn't know or
-    care which.
+    Summarize a paper's abstract (or extracted PDF text, for an upload) into a full,
+    structured literature-review-style summary (roughly 300-500 words), yielded
+    incrementally as it's generated - see _stream() above for the exact event shapes.
+    `text` should be paper.abstract or paper.extracted_text - whichever the caller
+    has; this function doesn't know or care which. `authors` and `year` (paper.authors
+    / paper.year - year may be None) are used only for the opening in-text citation -
+    see the system prompt below.
     """
     if not (text or "").strip():
         yield {"error": "This paper has no abstract or extracted text to summarize."}
         return
 
     system_prompt = (
-        "You summarize academic research papers for a student doing a literature "
-        "review. Write a concise, plain-language summary in 3-5 sentences covering: "
-        "what the paper studies, its method at a high level, and its main finding or "
-        "contribution. Write plain prose only - no headings, no bullet points, no "
-        "markdown formatting."
+        "You write structured, in-depth summaries of academic research papers for a "
+        "student doing a literature review. Write roughly 300-500 words of flowing "
+        "academic prose (multiple paragraphs; no headings, bullet points, numbered "
+        "lists, or markdown formatting - and don't label the parts below, just move "
+        "naturally from one to the next) that covers, in this order:\n\n"
+        "1. Open with a standard academic in-text citation lead-in naming the "
+        "paper's author(s) and publication year if given (e.g. 'Huang (2025) "
+        "investigates...' or 'Smith et al. (2023) examines...' - use the surname(s) "
+        "only, and 'et al.' for three or more authors), stating what the paper "
+        "investigates or is working on. If no year is given, drop the year rather "
+        "than inventing one; if no authors are given, open with the paper's subject "
+        "instead of a citation.\n"
+        "2. The problem statement: the gap, limitation, or challenge in existing "
+        "approaches that motivates this paper.\n"
+        "3. The proposed solution and methodology: what the paper proposes, and the "
+        "actual methods, techniques, models, datasets, or experimental design used - "
+        "in enough detail that a reader understands the approach, not just that one "
+        "exists.\n"
+        "4. The results: the paper's key findings, specific enough to understand "
+        "what was actually shown, not just that 'results were positive.'\n"
+        "5. A brief, neutral critical assessment of the paper's contribution and any "
+        "notable limitation or gap it leaves unaddressed (e.g. practical, cost, "
+        "generalizability, or scope concerns) - written in the third person as an "
+        "assessment of the paper's work, never as a first-person opinion ('I found', "
+        "'in my opinion', etc.).\n\n"
+        "Base every claim only on the title/authors/year and abstract or text "
+        "provided below - never invent methodology, results, or findings the source "
+        "text doesn't support. If the abstract or text is too thin to respond to one "
+        "of the five parts above with real substance, write shorter and stay factual "
+        "rather than filling the gap with invented specifics."
     )
-    user_content = f"Title: {title}\n\nAbstract/text:\n{text}"
+    authors_line = authors or "Not specified"
+    year_line = year if year else "Not specified"
+    user_content = (
+        f"Title: {title}\n"
+        f"Authors: {authors_line}\n"
+        f"Year: {year_line}\n\n"
+        f"Abstract/text:\n{text}"
+    )
     yield from _stream(system_prompt, user_content)
 
 
