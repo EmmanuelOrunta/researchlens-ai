@@ -26,6 +26,7 @@ from services.paper_service import (
     get_saved_paper_entries_for_project,
     get_saved_paper,
     get_all_papers_for_user,
+    get_ai_analysis_overview_for_user,
     get_projects_for_paper,
     user_can_access_paper,
     set_paper_summary,
@@ -296,6 +297,31 @@ def my_papers():
     return render_template("my_papers.html", entries=entries)
 
 
+@papers_bp.route("/analysis")
+def ai_analysis():
+    """
+    The "AI Paper Analysis" hub (Sprint 3): every paper saved anywhere across your
+    projects, with its AI Summary status and how many of its project(s) have a
+    relevance analysis - so you can see at a glance what still needs attention rather
+    than checking each project separately. Linked from the sidebar's "AI Paper
+    Analysis" item, distinct from "My Papers" (which is about browsing paper details,
+    not analysis status).
+    """
+    redirect_response = _require_login()
+    if redirect_response:
+        return redirect_response
+
+    db_session = get_session()
+    try:
+        overview = get_ai_analysis_overview_for_user(db_session, session["user_id"])
+    finally:
+        db_session.close()
+
+    return render_template(
+        "ai_analysis.html", overview=overview, openai_configured=openai_is_configured(),
+    )
+
+
 @papers_bp.route("/papers/<int:paper_id>")
 def paper_detail(paper_id):
     """A single paper's preview: full abstract (or extracted PDF text), source link, and which project(s) it's saved to."""
@@ -531,6 +557,8 @@ def summarize_stream(paper_id):
         if paper is None:
             abort(404)
         title = paper.title
+        authors = paper.authors
+        year = paper.year
         source_text, text_error = get_or_fetch_source_text(db_session, paper)
     finally:
         db_session.close()
@@ -539,7 +567,7 @@ def summarize_stream(paper_id):
         if text_error:
             yield json.dumps({"error": text_error}) + "\n"
             return
-        for event in stream_summarize_paper(title, source_text):
+        for event in stream_summarize_paper(title, authors, year, source_text):
             if event.get("done"):
                 write_session = get_session()
                 try:
