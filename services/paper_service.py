@@ -156,6 +156,49 @@ def get_all_papers_for_user(session, user_id: int):
     ]
 
 
+def get_ai_analysis_overview_for_user(session, user_id: int):
+    """
+    Every paper saved anywhere across this user's projects, together with each
+    project it's saved to AND that project's own SavedPaper row - powers the
+    "AI Paper Analysis" page (Sprint 3), which needs to show, per paper, both its
+    (global) AI summary status and its (per-project) relevance-analysis status
+    without a separate query per paper the way get_projects_for_paper() would need.
+
+    Returns a list of dicts, most recently added paper first:
+      {
+        "paper": Paper,
+        "projects": [{"project": ResearchProject, "saved_paper": SavedPaper}, ...],
+        "relevance_analysed_count": int,  # how many of those projects have a relevance analysis
+        "project_count": int,
+      }
+    """
+    rows = (
+        session.query(Paper, SavedPaper, ResearchProject)
+        .join(SavedPaper, SavedPaper.paper_id == Paper.id)
+        .join(ResearchProject, ResearchProject.id == SavedPaper.project_id)
+        .filter(ResearchProject.user_id == user_id)
+        .order_by(Paper.created_at.desc(), SavedPaper.saved_at.desc())
+        .all()
+    )
+
+    overview = []
+    entries_by_paper_id = {}
+    for paper, saved_paper, project in rows:
+        if paper.id not in entries_by_paper_id:
+            item = {"paper": paper, "projects": []}
+            entries_by_paper_id[paper.id] = item
+            overview.append(item)
+        entries_by_paper_id[paper.id]["projects"].append({"project": project, "saved_paper": saved_paper})
+
+    for item in overview:
+        item["project_count"] = len(item["projects"])
+        item["relevance_analysed_count"] = sum(
+            1 for p in item["projects"] if p["saved_paper"].relevance_analysis
+        )
+
+    return overview
+
+
 # --- Sprint 3: AI summaries, per-project relevance analysis, and per-project notes ---
 
 
