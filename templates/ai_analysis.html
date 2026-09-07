@@ -1,0 +1,53 @@
+{% extends "base_app.html" %}
+{% block title %}AI Paper Analysis · ResearchLens AI{% endblock %}
+{% block content %}
+  <h1 class="page-title">AI Paper Analysis</h1>
+  <p class="page-subtitle">
+    Every paper you've saved, with its AI Summary status and how many of its
+    project(s) have a relevance analysis - see what still needs attention without
+    checking each project separately.
+  </p>
+
+  {% if not openai_configured %}
+    <div class="empty-state" style="margin-bottom: 1.5rem;">
+      Add a free OPENAI_API_KEY in .env to generate AI summaries and relevance analysis - see .env.example.
+    </div>
+  {% endif %}
+
+  {% if not overview %}
+    <div class="empty-state">
+      You haven't saved any papers yet. Open a project and click "+ Add Papers" to get started.
+    </div>
+  {% else %}
+    {% for item in overview %}
+      {% set paper = item.paper %}
+      <div class="result-card">
+        <div class="result-title">
+          <a href="{{ url_for('papers.paper_detail', paper_id=paper.id) }}">{{ paper.title }}</a>
+        </div>
+        <div class="result-meta">
+          {{ paper.authors or "Unknown authors" }}{% if paper.year %} &middot; {{ paper.year }}{% endif %}
+        </div>
+
+        <div class="result-meta" style="margin-top: 0.5rem;">
+          <span class="badge-muted">{{ "🧠 Summarized" if paper.summary else "🧠 No summary yet" }}</span>
+          <span class="badge-muted">
+            🎯 Relevance analysed in {{ item.relevance_analysed_count }} of {{ item.project_count }}
+            project{{ "s" if item.project_count != 1 }}
+          </span>
+        </div>
+
+        <div class="result-actions" style="margin-top: 0.6rem;">
+          <a href="{{ url_for('papers.paper_detail', paper_id=paper.id) }}" class="btn btn-secondary btn-inline">
+            View AI Summary
+          </a>
+          {% for p in item.projects %}
+            <a href="{{ url_for('papers.project_paper_detail', project_id=p.project.id, paper_id=paper.id) }}" class="btn btn-inline">
+              {{ p.project.title }}{{ " ✓" if p.saved_paper.relevance_analysis else "" }}
+            </a>
+          {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endblock %}
