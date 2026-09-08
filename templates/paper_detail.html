@@ -46,7 +46,7 @@
     <div class="detail-card-header">
       <h2>🧠 AI Summary</h2>
       {% if paper.abstract or paper.extracted_text or paper.open_access_pdf_url %}
-        <button type="button" class="btn btn-secondary btn-sm"
+        <button type="button" class="btn btn-secondary btn-sm btn-inline"
                 data-stream-url="{{ url_for('papers.summarize_stream', paper_id=paper.id) }}"
                 data-target="summary-content">
           {{ "Regenerate" if paper.summary else "Generate Summary" }}
