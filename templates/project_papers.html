@@ -25,7 +25,7 @@
           &middot;
           <span class="badge-muted">{{ "🧠 Summarized" if paper.summary else "🧠 No summary yet" }}</span>
           <span class="badge-muted">{{ "🎯 Relevance rated" if saved_paper.relevance_analysis else "🎯 Not analysed" }}</span>
-          {% if saved_paper.notes %}<span class="badge-muted">📝 Has notes</span>{% endif %}
+          {% if entry.note_count %}<span class="badge-muted">📝 {{ entry.note_count }} note{{ "s" if entry.note_count != 1 }}</span>{% endif %}
         </div>
         {% if paper.abstract %}
           <p class="result-abstract">{{ paper.abstract[:200] }}{% if paper.abstract|length > 200 %}…{% endif %}</p>
