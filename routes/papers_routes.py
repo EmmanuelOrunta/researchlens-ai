@@ -30,9 +30,14 @@ from services.paper_service import (
     get_projects_for_paper,
     user_can_access_paper,
     set_paper_summary,
-    update_saved_paper_notes,
     set_saved_paper_relevance,
     get_or_fetch_source_text,
+    get_note_counts_for_saved_paper_ids,
+    get_note,
+    create_note,
+    update_note,
+    delete_note,
+    ensure_legacy_notes_migrated,
 )
 from services.pdf_service import is_allowed_pdf, save_uploaded_pdf, extract_text_from_pdf
 from services.openai_service import (
@@ -378,9 +383,11 @@ def project_papers(project_id):
     db_session = get_session()
     try:
         project = _get_owned_project_or_404(db_session, project_id)
+        pairs = get_saved_paper_entries_for_project(db_session, project_id)
+        note_counts = get_note_counts_for_saved_paper_ids(db_session, [sp.id for _, sp in pairs])
         entries = [
-            {"paper": paper, "saved_paper": saved_paper}
-            for paper, saved_paper in get_saved_paper_entries_for_project(db_session, project_id)
+            {"paper": paper, "saved_paper": saved_paper, "note_count": note_counts.get(saved_paper.id, 0)}
+            for paper, saved_paper in pairs
         ]
     finally:
         db_session.close()
@@ -412,12 +419,13 @@ def project_paper_detail(project_id, paper_id):
         paper = db_session.query(Paper).get(paper_id)
         if paper is None:
             abort(404)
+        notes = ensure_legacy_notes_migrated(db_session, saved_paper)
     finally:
         db_session.close()
 
     return render_template(
         "project_paper_detail.html", project=project, paper=paper, saved_paper=saved_paper,
-        openai_configured=openai_is_configured(),
+        notes=notes, openai_configured=openai_is_configured(),
     )
 
 
@@ -631,9 +639,14 @@ def generate_relevance_stream(project_id, paper_id):
     return Response(generate(), mimetype="application/x-ndjson")
 
 
-@papers_bp.route("/projects/<int:project_id>/papers/<int:paper_id>/notes", methods=["POST"])
-def save_notes(project_id, paper_id):
-    """Save this paper's free-form notes within this one project."""
+@papers_bp.route("/projects/<int:project_id>/papers/<int:paper_id>/notes/add", methods=["POST"])
+def add_note(project_id, paper_id):
+    """
+    Add a new note to this saved paper, within this project - each note is its own
+    independent entry (its own optional title and content), like adding a new file
+    rather than appending to a shared block of text. See project_paper_detail.html's
+    "+ Add Note" panel.
+    """
     redirect_response = _require_login()
     if redirect_response:
         return redirect_response
@@ -644,9 +657,66 @@ def save_notes(project_id, paper_id):
         saved_paper = get_saved_paper(db_session, project_id, paper_id)
         if saved_paper is None:
             abort(404)
-        update_saved_paper_notes(db_session, saved_paper, request.form.get("notes", "").strip())
+        content = request.form.get("content", "").strip()
+        title = request.form.get("title", "").strip()
+        if content:
+            create_note(db_session, saved_paper.id, content, title)
+            flash("Note added.", "success")
+        else:
+            flash("Can't add an empty note - write something first.", "error")
     finally:
         db_session.close()
 
-    flash("Notes saved.", "success")
+    return redirect(url_for("papers.project_paper_detail", project_id=project_id, paper_id=paper_id))
+
+
+@papers_bp.route("/projects/<int:project_id>/papers/<int:paper_id>/notes/<int:note_id>/edit", methods=["POST"])
+def edit_note(project_id, paper_id, note_id):
+    """Save edits to one existing note on this saved paper (title and/or content)."""
+    redirect_response = _require_login()
+    if redirect_response:
+        return redirect_response
+
+    db_session = get_session()
+    try:
+        _get_owned_project_or_404(db_session, project_id)
+        saved_paper = get_saved_paper(db_session, project_id, paper_id)
+        if saved_paper is None:
+            abort(404)
+        note = get_note(db_session, saved_paper.id, note_id)
+        if note is None:
+            abort(404)
+        content = request.form.get("content", "").strip()
+        title = request.form.get("title", "").strip()
+        if content:
+            update_note(db_session, note, content, title)
+            flash("Note updated.", "success")
+        else:
+            flash("Can't save an empty note - delete it instead if you don't need it anymore.", "error")
+    finally:
+        db_session.close()
+
+    return redirect(url_for("papers.project_paper_detail", project_id=project_id, paper_id=paper_id))
+
+
+@papers_bp.route("/projects/<int:project_id>/papers/<int:paper_id>/notes/<int:note_id>/delete", methods=["POST"])
+def delete_note_route(project_id, paper_id, note_id):
+    """Delete one note from this saved paper."""
+    redirect_response = _require_login()
+    if redirect_response:
+        return redirect_response
+
+    db_session = get_session()
+    try:
+        _get_owned_project_or_404(db_session, project_id)
+        saved_paper = get_saved_paper(db_session, project_id, paper_id)
+        if saved_paper is None:
+            abort(404)
+        note = get_note(db_session, saved_paper.id, note_id)
+        if note is not None:
+            delete_note(db_session, note)
+            flash("Note deleted.", "success")
+    finally:
+        db_session.close()
+
     return redirect(url_for("papers.project_paper_detail", project_id=project_id, paper_id=paper_id))
