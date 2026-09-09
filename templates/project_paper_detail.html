@@ -98,12 +98,78 @@
   </div>
 
   <div class="detail-card">
-    <div class="detail-card-header"><h2>📝 Notes</h2></div>
-    <form method="post" action="{{ url_for('papers.save_notes', project_id=project.id, paper_id=paper.id) }}" class="form-narrow" style="margin: 0;">
-      <div class="field" style="margin-bottom: 0.6rem;">
-        <textarea name="notes" rows="5" placeholder="Your own notes on this paper, just for this project&hellip;">{{ saved_paper.notes or '' }}</textarea>
+    <div class="detail-card-header">
+      <h2>📝 Notes</h2>
+      <button type="button" class="btn btn-secondary btn-sm btn-inline toggle-target"
+              data-toggle-target="add-note-panel">
+        + Add Note
+      </button>
+    </div>
+
+    <div id="add-note-panel" class="note-card note-compose" hidden>
+      <form method="post" action="{{ url_for('papers.add_note', project_id=project.id, paper_id=paper.id) }}" class="note-card-edit-form">
+        <div class="field">
+          <input type="text" name="title" placeholder="Note title (optional)">
+        </div>
+        <div class="field">
+          <textarea name="content" rows="4" placeholder="Write a new note&hellip;" required></textarea>
+        </div>
+        <div class="result-actions">
+          <button type="submit" class="btn btn-sm btn-inline">Save Note</button>
+          <button type="button" class="btn btn-secondary btn-sm btn-inline toggle-target"
+                  data-toggle-target="add-note-panel">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+
+    {% if not notes %}
+      <p class="detail-card-empty">No notes yet - click "+ Add Note" to write one.</p>
+    {% else %}
+      <div class="note-list">
+        {% for note in notes %}
+          <div class="note-card">
+            <div id="note-view-{{ note.id }}">
+              <div class="note-card-header">
+                <span class="note-card-title">📄 {{ note.title or ("Note " ~ loop.index) }}</span>
+                {% if note.updated_at %}
+                  <span class="note-card-meta">Edited {{ note.updated_at.strftime("%b %d, %Y") }}</span>
+                {% endif %}
+              </div>
+              <p class="note-card-body">{{ note.content }}</p>
+              <div class="result-actions" style="margin-top: 0.6rem;">
+                <button type="button" class="btn btn-secondary btn-sm btn-inline toggle-target"
+                        data-toggle-target="note-view-{{ note.id }} note-edit-{{ note.id }}">
+                  Edit
+                </button>
+                <form method="post" action="{{ url_for('papers.delete_note_route', project_id=project.id, paper_id=paper.id, note_id=note.id) }}"
+                      class="confirm-delete" data-confirm="Delete this note? This can't be undone.">
+                  <button type="submit" class="btn btn-danger-ghost btn-sm btn-inline">Delete</button>
+                </form>
+              </div>
+            </div>
+
+            <div id="note-edit-{{ note.id }}" hidden>
+              <form method="post" action="{{ url_for('papers.edit_note', project_id=project.id, paper_id=paper.id, note_id=note.id) }}" class="note-card-edit-form">
+                <div class="field">
+                  <input type="text" name="title" value="{{ note.title or '' }}" placeholder="Note title (optional)">
+                </div>
+                <div class="field">
+                  <textarea name="content" rows="4" required>{{ note.content }}</textarea>
+                </div>
+                <div class="result-actions">
+                  <button type="submit" class="btn btn-sm btn-inline">Save</button>
+                  <button type="button" class="btn btn-secondary btn-sm btn-inline toggle-target"
+                          data-toggle-target="note-view-{{ note.id }} note-edit-{{ note.id }}">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        {% endfor %}
       </div>
-      <button type="submit" class="btn btn-secondary btn-sm btn-inline">Save Notes</button>
-    </form>
+    {% endif %}
   </div>
 {% endblock %}
