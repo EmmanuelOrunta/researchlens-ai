@@ -37,6 +37,7 @@ def init_db():
     from models.project import ResearchProject  # noqa: F401
     from models.paper import Paper  # noqa: F401
     from models.saved_paper import SavedPaper  # noqa: F401
+    from models.note import Note  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
     _apply_lightweight_migrations()
