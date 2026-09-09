@@ -26,6 +26,21 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
+  // Generic show/hide toggle - clicking a button with class="toggle-target" flips
+  // the `hidden` attribute on every id listed (space-separated) in
+  // data-toggle-target. Used for the Notes section's "+ Add Note" compose panel and
+  // each note's Edit/Cancel switch between its view and edit blocks - since Edit and
+  // Cancel both target the exact same pair of ids, one flip-both handler covers
+  // opening AND closing without needing separate "open" and "close" logic.
+  document.querySelectorAll(".toggle-target").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      (btn.dataset.toggleTarget || "").split(/\s+/).filter(Boolean).forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.hidden = !el.hidden;
+      });
+    });
+  });
+
   // Auto-dismiss flash messages after a few seconds
   document.querySelectorAll(".flash").forEach(function (el) {
     setTimeout(function () {
