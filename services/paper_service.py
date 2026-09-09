@@ -6,9 +6,12 @@
 
 from datetime import datetime
 
+from sqlalchemy import func
+
 from models.paper import Paper
 from models.saved_paper import SavedPaper
 from models.project import ResearchProject
+from models.note import Note
 from services.pdf_service import fetch_and_extract_text_from_url
 
 
@@ -240,12 +243,91 @@ def get_saved_paper_entries_for_project(session, project_id: int):
     )
 
 
-def update_saved_paper_notes(session, saved_paper: SavedPaper, notes: str) -> SavedPaper:
-    """Overwrite this paper's free-form notes within this one project."""
-    saved_paper.notes = notes or None
+def get_notes_for_saved_paper(session, saved_paper_id: int):
+    """All notes on one saved paper, oldest first - so 'Note 1' (the default title
+    shown when a note has none) stays stable as more notes are added afterwards."""
+    return (
+        session.query(Note)
+        .filter(Note.saved_paper_id == saved_paper_id)
+        .order_by(Note.created_at.asc())
+        .all()
+    )
+
+
+def get_note_counts_for_saved_paper_ids(session, saved_paper_ids):
+    """
+    How many notes exist for each of the given saved_paper ids, as a
+    {saved_paper_id: count} dict - ids with zero notes are simply absent, so callers
+    should read it with .get(id, 0). One query instead of one-per-row, for pages like
+    project_papers.html that list many saved papers at once.
+    """
+    if not saved_paper_ids:
+        return {}
+    rows = (
+        session.query(Note.saved_paper_id, func.count(Note.id))
+        .filter(Note.saved_paper_id.in_(saved_paper_ids))
+        .group_by(Note.saved_paper_id)
+        .all()
+    )
+    return {saved_paper_id: count for saved_paper_id, count in rows}
+
+
+def get_note(session, saved_paper_id: int, note_id: int):
+    """One note, scoped to the saved_paper it's supposed to belong to - so a note id
+    can't be edited or deleted through a URL for a saved paper it doesn't belong to."""
+    return (
+        session.query(Note)
+        .filter(Note.id == note_id, Note.saved_paper_id == saved_paper_id)
+        .first()
+    )
+
+
+def create_note(session, saved_paper_id: int, content: str, title: str = None) -> Note:
+    """Add a new note to a saved paper - each note is independent of any others
+    already on the same paper, like adding a new file rather than appending text."""
+    note = Note(saved_paper_id=saved_paper_id, content=content or "", title=(title or None))
+    session.add(note)
     session.commit()
-    session.refresh(saved_paper)
-    return saved_paper
+    session.refresh(note)
+    return note
+
+
+def update_note(session, note: Note, content: str, title: str = None) -> Note:
+    """Overwrite one existing note's title and content - the edit history
+    (updated_at) is bumped so the note reflects when it was last changed."""
+    note.content = content or ""
+    note.title = title or None
+    note.updated_at = datetime.utcnow()
+    session.commit()
+    session.refresh(note)
+    return note
+
+
+def delete_note(session, note: Note) -> None:
+    session.delete(note)
+    session.commit()
+
+
+def ensure_legacy_notes_migrated(session, saved_paper: SavedPaper):
+    """
+    Before this multi-note rework, a saved paper had exactly one free-form notes
+    field (SavedPaper.notes). This promotes any text still sitting in that old column
+    into a real, editable Note the first time this saved paper's page is loaded after
+    the update, rather than silently orphaning whatever a user had already written -
+    then clears the old column so this only ever runs (and only ever creates that one
+    note) once per saved paper.
+
+    Returns the (possibly newly-created) list of notes for this saved paper, so
+    callers can use this in place of a plain get_notes_for_saved_paper() call.
+    """
+    notes = get_notes_for_saved_paper(session, saved_paper.id)
+    legacy_text = (saved_paper.notes or "").strip()
+    if not notes and legacy_text:
+        create_note(session, saved_paper.id, legacy_text)
+        saved_paper.notes = None
+        session.commit()
+        notes = get_notes_for_saved_paper(session, saved_paper.id)
+    return notes
 
 
 def set_saved_paper_relevance(session, saved_paper: SavedPaper, analysis: str) -> SavedPaper:
