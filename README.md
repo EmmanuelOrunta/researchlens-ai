@@ -1,14 +1,26 @@
 # ResearchLens AI (Flask + HTML/CSS/JS build)
 
-An AI-assisted academic research workspace. This is the **Sprint 1** build: user
-registration, login, logout, a dashboard, and basic research-project creation - the
-foundation everything else (paper search, AI analysis, RAG Q&A, research-gap detection)
-will be built on top of in later sprints.
+An AI-assisted academic research workspace. Users can register and sign in, create
+research projects, search academic literature across two scholarly APIs, save papers to
+a project (or upload their own PDFs), and get AI-generated summaries, relevance
+analysis, and multi-note annotations for each saved paper - all inside one consistent
+Flask app.
 
-This build replaces the earlier Streamlit prototype with a real HTML/CSS/JS frontend
-served by a Flask backend, for full control over the look and feel. The database logic
-(SQLite + SQLAlchemy) carried over unchanged - it never depended on Streamlit in the
-first place.
+This README covers everything shipped through **Sprint 3**:
+
+- **Sprint 1 - Foundation & Authentication:** registration, login/logout, dashboard,
+  research-project management, account settings, account deletion.
+- **Sprint 2 - Academic Research Discovery:** combined Semantic Scholar + OpenAlex
+  search, year filtering and sorting, saving papers to a project, direct PDF upload,
+  and the full visual redesign (this build's real HTML/CSS/JS frontend, replacing the
+  original Streamlit prototype before Sprint 1 was submitted).
+- **Sprint 3 - AI Paper Analysis:** OpenAI-powered paper summaries and relevance
+  analysis with live streaming output, a per-paper detail page, the "AI Paper
+  Analysis" hub page across every saved paper, and a multi-note system for saved
+  papers.
+
+Still to come (see [section 9](#9-whats-next)): the literature comparison matrix,
+"Ask Your Literature" (RAG-based Q&A), and research-gap detection.
 
 ---
 
@@ -65,9 +77,31 @@ again every time you open a new terminal to work on this project.
 pip install -r requirements.txt
 ```
 
+This installs Flask, SQLAlchemy, bcrypt, python-dotenv, requests, PyMuPDF (PDF text
+extraction), and the `openai` client (Sprint 3's AI features).
+
 ---
 
-## 5. Run the app
+## 5. Set up your API keys (needed for search and AI features)
+
+Copy `.env.example` to a new file named `.env` in the project root, then fill in:
+
+- **`FLASK_SECRET_KEY`** - any long random string, used to sign login session cookies.
+  Generate one with `python -c "import secrets; print(secrets.token_hex(32))"`.
+- **`OPENAI_API_KEY`** - required for the AI Summary and Relevance Analysis features
+  (Sprint 3). Get one at [platform.openai.com/api-keys](https://platform.openai.com/api-keys).
+  Without a key, those buttons show an "Add an OpenAI key" message instead of failing
+  silently - the rest of the app works fine without it.
+- **`SEMANTIC_SCHOLAR_API_KEY`** - optional. Paper search works without it (OpenAlex
+  needs no key at all), but a free key raises Semantic Scholar's rate limit above the
+  shared, unauthenticated pool. Request one at
+  [semanticscholar.org/product/api](https://www.semanticscholar.org/product/api#api-key).
+
+`.env` is git-ignored, so your keys are never committed.
+
+---
+
+## 6. Run the app
 
 ```
 python app.py
@@ -80,77 +114,163 @@ Try it out:
 1. Click **Create one** (register), fill in the form, submit.
 2. You'll land on the Dashboard, signed in.
 3. Click **+ New Research Project**, create one, see it appear on your dashboard.
-4. Click **Sign out**, then log back in with the same email/password.
+4. Open the project, click **Search Papers**, search for a topic, and save a result
+   to the project (or upload a PDF instead).
+5. Open a saved paper and click **Generate AI Summary** or **Analyze Relevance**
+   (requires an OpenAI key) to watch the analysis stream in live, then add a note.
+6. Click **Sign out**, then log back in with the same email/password.
 
 To stop the app: click the terminal and press `Ctrl+C`.
 
 ---
 
-## 6. How the code is organised
+## 7. How the code is organised
 
 ```
 researchlens-ai-flask/
-├── app.py                     ← entry point: run this file. Creates the Flask app.
-├── routes/
-│   ├── auth_routes.py         ← /login, /register, /logout
-│   └── main_routes.py         ← /  (dashboard), /projects/new
-├── services/                  ← the actual logic, kept separate from the routes/templates
-│   ├── database_service.py    ← database connection + table creation
-│   ├── auth_service.py        ← password hashing, user lookup/creation
-│   └── project_service.py     ← create/list research projects
-├── models/                    ← one file per database table
+├── app.py                        ← entry point: run this file. Creates the Flask app,
+│                                    registers all four blueprints, sets up the
+│                                    `initials` template filter and the `current_user`
+│                                    context processor.
+├── routes/                       ← controllers: handle requests, call services
+│   ├── auth_routes.py             ← /login, /register, /logout
+│   ├── main_routes.py             ← / (dashboard), research-project CRUD
+│   ├── papers_routes.py           ← search, save/remove, PDF upload, My Papers,
+│   │                                 paper detail pages, the AI Analysis hub, the
+│   │                                 AI summary/relevance streaming endpoints, and
+│   │                                 the multi-note endpoints (add/edit/delete)
+│   └── settings_routes.py         ← Settings page: name/password change, account deletion
+├── services/                     ← business logic, the only layer that touches models
+│   ├── database_service.py        ← database connection, session factory, init_db()
+│   ├── auth_service.py            ← password hashing (bcrypt), user CRUD
+│   ├── project_service.py         ← research-project CRUD, "recently viewed"
+│   ├── paper_service.py           ← saving/removing papers, access control, and the
+│   │                                 multi-note functions (create/update/delete/list)
+│   ├── pdf_service.py             ← validating and saving uploaded PDFs, text
+│   │                                 extraction via PyMuPDF
+│   ├── semantic_scholar_service.py ← Semantic Scholar API client
+│   ├── openalex_service.py        ← OpenAlex API client (rebuilds abstracts from
+│   │                                 their "inverted index" format)
+│   └── openai_service.py          ← OpenAI Responses API integration: streams the
+│                                     AI Summary and Relevance Analysis back to the
+│                                     browser as they're generated
+├── models/                       ← one file per database table
 │   ├── user.py
-│   └── project.py
-├── templates/                 ← the actual HTML (Jinja2 templates)
-│   ├── base_auth.html         ← shared layout for login/register (centered card, no sidebar)
-│   ├── base_app.html          ← shared layout for logged-in pages (sidebar + content)
-│   ├── login.html
-│   ├── register.html
+│   ├── project.py
+│   ├── paper.py                   ← a paper found via search or uploaded as a PDF
+│   ├── saved_paper.py             ← join table: which paper is saved to which project
+│   └── note.py                    ← a single user note attached to a saved paper
+│                                     (a saved paper can have any number of notes)
+├── templates/                    ← the HTML (Jinja2 templates)
+│   ├── base_auth.html             ← shared layout for login/register
+│   ├── base_app.html              ← shared layout for logged-in pages (sidebar + content)
+│   ├── login.html / register.html
 │   ├── dashboard.html
-│   └── new_project.html
+│   ├── projects.html / new_project.html / edit_project.html / project_detail.html
+│   ├── choose_project.html        ← pick a project before searching, if you have more than one
+│   ├── paper_search.html          ← search form, results, filters, pagination
+│   ├── project_papers.html        ← a project's full list of saved papers
+│   ├── project_paper_detail.html  ← a saved paper within a project: AI Summary,
+│   │                                 Relevance Analysis, and its notes
+│   ├── paper_detail.html          ← a paper's own page, independent of any one project
+│   ├── my_papers.html             ← every paper saved across all of a user's projects
+│   ├── ai_analysis.html           ← the "AI Paper Analysis" hub: every saved paper,
+│   │                                 which projects it's in, and its analysis status
+│   └── settings.html              ← profile, password change, danger zone (delete account)
 ├── static/
-│   ├── css/style.css          ← all the styling - one file, driven by CSS variables at the top
-│   └── js/app.js              ← password show/hide toggle, auto-dismissing flash messages
-├── database/                  ← researchlens.db (SQLite file) created here on first run
-├── data/                      ← reserved for the demo dataset (Sprint 2+)
-├── uploads/                   ← reserved for user-uploaded PDFs (Sprint 3+)
+│   ├── css/style.css              ← the whole design system in one file (Fraunces +
+│   │                                 Inter fonts, color palette, cards, panels, the
+│   │                                 streaming-output styling)
+│   └── js/app.js                  ← password show/hide, confirm-before-delete dialogs,
+│                                     auto-dismissing flash messages, and the
+│                                     fetch-based streaming client for AI Summary/
+│                                     Relevance Analysis
+├── database/                     ← researchlens.db (SQLite file), created here on first run
+├── uploads/                      ← uploaded PDFs, saved under randomly generated
+│                                     filenames so two users' files never collide
+├── data/                         ← reserved for future features (e.g. cached embeddings)
 ├── requirements.txt
-├── .env.example                ← copy to .env when you're ready to add API keys
+├── .env.example                  ← copy to .env and fill in your keys (section 5)
 └── .gitignore
 ```
 
 **How a page request flows:** browser hits a URL → Flask matches it to a function in
 `routes/` → that function talks to `services/` to read/write the database → it picks a
 template from `templates/` and fills in the blanks → Flask sends back the finished HTML.
-`static/css/style.css` and `static/js/app.js` are just plain files the browser downloads
-alongside the HTML, same as any website.
+The AI Summary and Relevance Analysis endpoints work a little differently: the browser
+opens a streaming `fetch()` request, and `openai_service.py` streams tokens back from
+OpenAI's Responses API through the Flask route to the page in real time, the same way
+ChatGPT's own answers appear word by word, rather than making the user wait for the
+whole result before showing anything.
 
 **On login sessions:** Flask keeps track of who's logged in using a signed cookie
-(`session["user_id"]`). The `login_required` decorator at the top of `main_routes.py`
-checks for that cookie before running a page's code, and sends visitors to `/login` if
-it's missing.
+(`session["user_id"]`). The `login_required` decorator (defined in `main_routes.py`
+and reused by every blueprint) checks for that cookie before running a page's code, and
+sends visitors to `/login` if it's missing.
+
+**A note on access control:** every query for a specific project or paper filters by
+the *requesting user's own id*, not just the record's id (see `get_project_for_user`
+and `user_can_access_paper`) - this is what stops one account from viewing or guessing
+into another account's data.
 
 ---
 
-## 7. About the API keys (for later sprints)
+## 8. Feature tour by sprint
 
-Sprint 1 doesn't call any external APIs. Two services come into play starting Sprint 2/3:
+### Sprint 1 - Foundation & Authentication
+- Secure registration, login, and logout, with passwords hashed and salted via bcrypt
+  (never stored in plain text).
+- Session-based authentication guarding every workspace page.
+- A dashboard with stat cards and a "recently viewed" projects list.
+- Research-project management: create and view.
+- A Settings page for updating display name and password, both re-checked against the
+  current password before saving.
+- Full account deletion (password-confirmed, cascading to the account's own projects
+  and saved papers).
 
-- **Semantic Scholar / OpenAlex** - free academic search APIs.
-- **OpenAI API** - used later for AI paper summaries, "Ask Your Literature," and
-  research-gap detection. Requires an account and billing at
-  [platform.openai.com](https://platform.openai.com/); usage is billed per request.
+### Sprint 2 - Academic Research Discovery
+- Combined paper search across **Semantic Scholar** and **OpenAlex**, two free,
+  official scholarly APIs, merged and de-duplicated by DOI (falling back to title) so
+  the same paper never appears twice.
+- Year-range filtering and sort-by (relevance / newest / oldest), with server-side
+  pagination.
+- Full project CRUD (create, edit, delete) and a save/remove workflow linking papers
+  to a project's library.
+- Direct PDF upload with text extraction via PyMuPDF.
+- The complete custom Flask + Jinja2 + hand-written CSS interface (Fraunces for
+  headings, Inter for body text) that this build has used since before Sprint 1's
+  submission, replacing the originally planned Streamlit frontend.
 
-When ready, copy `.env.example` to `.env` and fill in your keys. `.env` is already
-excluded from Git.
+### Sprint 3 - AI Paper Analysis
+- **OpenAI-powered AI Summary:** a structured, 300-500 word summary generated for any
+  saved paper, streamed live into the page as it's written rather than appearing all
+  at once after a wait.
+- **Relevance Analysis:** an AI-generated assessment of how relevant a saved paper is
+  to a project's specific research question, also streamed live.
+- **Per-paper detail page** (`project_paper_detail.html`): one place to read a saved
+  paper's abstract, generate or re-read its AI Summary and Relevance Analysis, and
+  manage its notes, scoped to the project it's saved in.
+- **"AI Paper Analysis" hub page** (`/analysis`): every paper saved across all of a
+  user's projects in one view, showing which projects each paper belongs to and
+  whether it's been analyzed yet.
+- **Multi-note system:** any number of free-text notes per saved paper (not just one),
+  each with an optional custom title, addable/editable/deletable independently.
 
 ---
 
-## 8. What's next
+## 9. What's next
 
-This covers Sprint 1 from the project plan. Coming in later sprints, in order:
-academic paper search (Semantic Scholar/OpenAlex), saving papers to a project,
-AI-generated paper analysis, the literature comparison matrix, paper comparison,
-"Ask Your Literature" (RAG), and potential research-gap detection - all served through
-these same Flask routes and templates, so the AI features will live in the same app
-rather than a second, separate tool.
+Two sprints remain on the project roadmap:
+
+- **Sprint 4 - Research Intelligence (Agentic RAG):** evidence tracking that links AI
+  output back to the specific saved paper(s) it drew from, "Ask Your Literature"
+  (question-answering grounded in and cited to a user's own saved papers), structured
+  paper comparison, and a minimal tool-using OpenAI Agent as the project's core
+  agentic-AI deliverable.
+- **Sprint 5 - Integration, Testing & Final Prototype:** a prepared offline-safe demo
+  mode, usability and AI-accuracy testing, end-to-end testing of authentication and
+  search, and bug fixes.
+
+These are also visible in the app itself: the sidebar (`base_app.html`) marks the
+Literature Matrix, Ask Your Literature, and Research Gaps sections "Soon" until their
+sprints land.
