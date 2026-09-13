@@ -121,8 +121,12 @@ def _stream(system_prompt: str, user_content: str):
 def stream_summarize_paper(title: str, authors: str, year, text: str):
     """
     Summarize a paper's abstract (or extracted PDF text, for an upload) into a full,
-    structured literature-review-style summary (roughly 300-500 words), yielded
-    incrementally as it's generated - see _stream() above for the exact event shapes.
+    structured literature-review-style summary (roughly 300-500 words, across exactly
+    six paragraphs - author(s)/research question, problem statement and proposed
+    solution, methodology, results/findings, conclusion, and critical reflection, each
+    separated by a blank line so the UI can render them as distinct paragraphs - see
+    templates/project_paper_detail.html and static/js/app.js), yielded incrementally
+    as it's generated - see _stream() above for the exact event shapes.
     `text` should be paper.abstract or paper.extracted_text - whichever the caller
     has; this function doesn't know or care which. `authors` and `year` (paper.authors
     / paper.year - year may be None) are used only for the opening in-text citation -
@@ -134,35 +138,43 @@ def stream_summarize_paper(title: str, authors: str, year, text: str):
 
     system_prompt = (
         "You write structured, in-depth summaries of academic research papers for a "
-        "student doing a literature review. Write roughly 300-500 words of flowing "
-        "academic prose (multiple paragraphs; no headings, bullet points, numbered "
-        "lists, or markdown formatting - and don't label the parts below, just move "
-        "naturally from one to the next) that covers, in this order:\n\n"
-        "1. Open with a standard academic in-text citation lead-in naming the "
-        "paper's author(s) and publication year if given (e.g. 'Huang (2025) "
-        "investigates...' or 'Smith et al. (2023) examines...' - use the surname(s) "
-        "only, and 'et al.' for three or more authors), stating what the paper "
-        "investigates or is working on. If no year is given, drop the year rather "
-        "than inventing one; if no authors are given, open with the paper's subject "
-        "instead of a citation.\n"
-        "2. The problem statement: the gap, limitation, or challenge in existing "
-        "approaches that motivates this paper.\n"
-        "3. The proposed solution and methodology: what the paper proposes, and the "
-        "actual methods, techniques, models, datasets, or experimental design used - "
-        "in enough detail that a reader understands the approach, not just that one "
-        "exists.\n"
-        "4. The results: the paper's key findings, specific enough to understand "
-        "what was actually shown, not just that 'results were positive.'\n"
-        "5. A brief, neutral critical assessment of the paper's contribution and any "
-        "notable limitation or gap it leaves unaddressed (e.g. practical, cost, "
-        "generalizability, or scope concerns) - written in the third person as an "
-        "assessment of the paper's work, never as a first-person opinion ('I found', "
-        "'in my opinion', etc.).\n\n"
+        "student doing a literature review. Write roughly 300-500 words of academic "
+        "prose organized into EXACTLY six paragraphs, in this order, with no "
+        "headings, labels, bullet points, numbered lists, or markdown formatting "
+        "anywhere in the output - each paragraph should read as plain prose, and the "
+        "only structure should come from where one paragraph ends and the next "
+        "begins. Separate every paragraph from the next with a blank line (i.e. two "
+        "newline characters), and do not put a blank line anywhere except between "
+        "these six paragraphs:\n\n"
+        "1. Author(s) and research question: open with a standard academic in-text "
+        "citation lead-in naming the paper's author(s) and publication year if given "
+        "(e.g. 'Huang (2025) investigates...' or 'Smith et al. (2023) examines...' - "
+        "use the surname(s) only, and 'et al.' for three or more authors), then "
+        "state the paper's research question or what it investigates. If no year is "
+        "given, drop the year rather than inventing one; if no authors are given, "
+        "open with the paper's subject instead of a citation.\n"
+        "2. Problem statement and proposed solution: the gap, limitation, or "
+        "challenge in existing approaches that motivates this paper, and what the "
+        "paper proposes to address it.\n"
+        "3. Methodology: the actual methods, techniques, models, datasets, or "
+        "experimental design used - in enough detail that a reader understands the "
+        "approach, not just that one exists.\n"
+        "4. Results/findings: the paper's key findings, specific enough to "
+        "understand what was actually shown, not just that 'results were "
+        "positive.'\n"
+        "5. Conclusion: the paper's own stated conclusion or takeaway - what the "
+        "authors argue the results mean.\n"
+        "6. Critical reflection: a brief, neutral critical assessment of the "
+        "paper's contribution and any notable limitation or gap it leaves "
+        "unaddressed (e.g. practical, cost, generalizability, or scope concerns) - "
+        "written in the third person as an assessment of the paper's work, never as "
+        "a first-person opinion ('I found', 'in my opinion', etc.).\n\n"
         "Base every claim only on the title/authors/year and abstract or text "
         "provided below - never invent methodology, results, or findings the source "
-        "text doesn't support. If the abstract or text is too thin to respond to one "
-        "of the five parts above with real substance, write shorter and stay factual "
-        "rather than filling the gap with invented specifics."
+        "text doesn't support. If the abstract or text is too thin to support one of "
+        "the six paragraphs above with real substance, keep that paragraph short and "
+        "factual rather than filling the gap with invented specifics - but still "
+        "produce exactly six paragraphs, separated by blank lines, every time."
     )
     authors_line = authors or "Not specified"
     year_line = year if year else "Not specified"
