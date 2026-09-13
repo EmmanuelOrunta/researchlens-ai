@@ -61,6 +61,14 @@ document.addEventListener("DOMContentLoaded", function () {
   //                      generate_relevance_stream() for exactly what it sends.
   //   data-target      - the id of the <div> whose contents this replaces with the
   //                      streamed text as it arrives.
+  //   data-paragraphs  - "true" on the AI Summary button only. The summary is
+  //                      generated as six blank-line-separated paragraphs (see
+  //                      services/openai_service.py's stream_summarize_paper()), so
+  //                      this renders each one as its own justified <p class=
+  //                      "ai-summary-paragraph"> as it streams in, matching how
+  //                      paper.summary is split back apart on page load in the
+  //                      templates. Relevance Analysis omits this attribute and
+  //                      keeps rendering as a single paragraph.
   // A plain fetch() + manual stream reader is used here (rather than EventSource/SSE)
   // because EventSource only supports GET requests, and every mutating action in this
   // app goes through POST.
@@ -69,18 +77,39 @@ document.addEventListener("DOMContentLoaded", function () {
       var target = document.getElementById(button.dataset.target);
       if (!target) return;
 
+      var usesParagraphs = button.dataset.paragraphs === "true";
       var originalButtonText = button.textContent;
       button.disabled = true;
       button.textContent = "Generating…";
 
-      target.innerHTML = "";
-      var paragraph = document.createElement("p");
-      paragraph.className = "detail-card-body";
-      var cursor = document.createElement("span");
-      cursor.className = "typing-cursor";
-      paragraph.appendChild(document.createTextNode(""));
-      paragraph.appendChild(cursor);
-      target.appendChild(paragraph);
+      var fullText = "";
+      var finished = false;
+
+      // Rebuilds target's contents from fullText every time new text arrives, rather
+      // than appending in place - simpler and safer than trying to patch in a new
+      // paragraph break that might arrive split across two separate stream events
+      // (e.g. one delta ending in "\n" and the next starting with "\n"). The summary
+      // is short enough (a few hundred words) that re-rendering per chunk is cheap.
+      function render(showCursor) {
+        target.innerHTML = "";
+        var paragraphs = usesParagraphs
+          ? fullText.split(/\n{2,}/).map(function (s) { return s.trim(); }).filter(Boolean)
+          : [fullText];
+        if (paragraphs.length === 0) paragraphs = [""];
+        paragraphs.forEach(function (text, i) {
+          var p = document.createElement("p");
+          p.className = usesParagraphs ? "detail-card-body ai-summary-paragraph" : "detail-card-body";
+          p.appendChild(document.createTextNode(text));
+          if (showCursor && i === paragraphs.length - 1) {
+            var cursor = document.createElement("span");
+            cursor.className = "typing-cursor";
+            p.appendChild(cursor);
+          }
+          target.appendChild(p);
+        });
+      }
+
+      render(true); // shows one empty paragraph with a cursor before anything arrives
 
       function showError(message) {
         target.innerHTML = "";
@@ -112,7 +141,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 // {"error": ...} (e.g. the connection dropped mid-response) still
                 // needs to leave the button usable again rather than stuck on
                 // "Generating…" forever.
-                if (!paragraph.dataset.finished) {
+                if (!finished) {
+                  finished = true;
                   finish(originalButtonText);
                 }
                 return;
@@ -132,15 +162,17 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
 
                 if (event.error) {
-                  paragraph.dataset.finished = "true";
+                  finished = true;
                   showError(event.error);
                   finish(originalButtonText);
                 } else if (event.done) {
-                  paragraph.dataset.finished = "true";
-                  cursor.remove();
+                  finished = true;
+                  fullText = event.text || fullText;
+                  render(false);
                   finish("Regenerate");
                 } else if (event.delta) {
-                  cursor.insertAdjacentText("beforebegin", event.delta);
+                  fullText += event.delta;
+                  render(true);
                 }
               });
 
@@ -151,8 +183,8 @@ document.addEventListener("DOMContentLoaded", function () {
           return pump();
         })
         .catch(function () {
-          if (!paragraph.dataset.finished) {
-            paragraph.dataset.finished = "true";
+          if (!finished) {
+            finished = true;
             showError("Something went wrong generating this - try again.");
             finish(originalButtonText);
           }
