@@ -51,14 +51,18 @@
       {% if paper.abstract or paper.extracted_text or paper.open_access_pdf_url %}
         <button type="button" class="btn btn-secondary btn-sm btn-inline"
                 data-stream-url="{{ url_for('papers.summarize_stream', paper_id=paper.id) }}"
-                data-target="summary-content">
+                data-target="summary-content" data-paragraphs="true">
           {{ "Regenerate" if paper.summary else "Generate Summary" }}
         </button>
       {% endif %}
     </div>
     <div id="summary-content">
       {% if paper.summary %}
-        <p class="detail-card-body">{{ paper.summary }}</p>
+        {% for paragraph in paper.summary.split("\n\n") %}
+          {% if paragraph.strip() %}
+            <p class="detail-card-body ai-summary-paragraph">{{ paragraph.strip() }}</p>
+          {% endif %}
+        {% endfor %}
       {% elif not openai_configured %}
         <p class="detail-card-empty">Add a free OPENAI_API_KEY in .env to generate an AI summary - see .env.example.</p>
       {% elif not (paper.abstract or paper.extracted_text or paper.open_access_pdf_url) %}
