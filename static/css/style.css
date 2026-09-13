@@ -615,6 +615,21 @@ a.project-card-link:hover {
 .detail-card-empty { color: var(--color-text-muted); font-size: 0.9rem; margin: 0; font-style: italic; }
 .detail-card-empty.stream-error { color: var(--color-danger, #B3261E); font-style: normal; }
 
+/* AI Summary (Sprint 3) is generated as six distinct paragraphs - author(s)/research
+   question, problem statement and proposed solution, methodology, results/findings,
+   conclusion, and critical reflection (see services/openai_service.py's
+   stream_summarize_paper()) - rendered as separate, justified <p> tags rather than one
+   flowing block, both on page load (templates/project_paper_detail.html,
+   templates/paper_detail.html) and while streaming live (static/js/app.js). Relevance
+   Analysis is unaffected and keeps rendering as a single paragraph. */
+.ai-summary-paragraph {
+  text-align: justify;
+  text-justify: inter-word;
+}
+.ai-summary-paragraph + .ai-summary-paragraph {
+  margin-top: 0.95em;
+}
+
 /* Blinking cursor shown at the end of AI Summary / Relevance Analysis text while it's
    streaming in live, ChatGPT-style - see static/js/app.js's [data-stream-url] handler. */
 .typing-cursor {
