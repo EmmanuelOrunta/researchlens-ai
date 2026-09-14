@@ -60,7 +60,8 @@ document.addEventListener("DOMContentLoaded", function () {
   //                      routes/papers_routes.py's summarize_stream() /
   //                      generate_relevance_stream() for exactly what it sends.
   //   data-target      - the id of the <div> whose contents this replaces with the
-  //                      streamed text as it arrives.
+  //                      streamed text as it arrives. Mutually exclusive with
+  //                      data-targets below - each button uses exactly one.
   //   data-paragraphs  - "true" on the AI Summary button only. The summary is
   //                      generated as six blank-line-separated paragraphs (see
   //                      services/openai_service.py's stream_summarize_paper()), so
@@ -69,13 +70,22 @@ document.addEventListener("DOMContentLoaded", function () {
   //                      paper.summary is split back apart on page load in the
   //                      templates. Relevance Analysis omits this attribute and
   //                      keeps rendering as a single paragraph.
+  //   data-targets     - space-separated element ids, used by the Literature Matrix's
+  //                      "Extract with AI" button instead of data-target. The stream
+  //                      still carries one blank-line-separated block of text (see
+  //                      services/openai_service.py's stream_extract_matrix_fields()),
+  //                      but here each of its paragraphs is routed to its own target
+  //                      id in order (Methodology/Sample/Findings/Limitations -> that
+  //                      row's four table cells) instead of all landing in one place.
   // A plain fetch() + manual stream reader is used here (rather than EventSource/SSE)
   // because EventSource only supports GET requests, and every mutating action in this
   // app goes through POST.
   document.querySelectorAll("[data-stream-url]").forEach(function (button) {
     button.addEventListener("click", function () {
-      var target = document.getElementById(button.dataset.target);
-      if (!target) return;
+      var targetIds = (button.dataset.targets || "").split(/\s+/).filter(Boolean);
+      var multiTarget = targetIds.length > 0;
+      var target = multiTarget ? null : document.getElementById(button.dataset.target);
+      if (!multiTarget && !target) return;
 
       var usesParagraphs = button.dataset.paragraphs === "true";
       var originalButtonText = button.textContent;
@@ -85,17 +95,40 @@ document.addEventListener("DOMContentLoaded", function () {
       var fullText = "";
       var finished = false;
 
-      // Rebuilds target's contents from fullText every time new text arrives, rather
-      // than appending in place - simpler and safer than trying to patch in a new
-      // paragraph break that might arrive split across two separate stream events
+      // Rebuilds the target(s)' contents from fullText every time new text arrives,
+      // rather than appending in place - simpler and safer than trying to patch in a
+      // new paragraph break that might arrive split across two separate stream events
       // (e.g. one delta ending in "\n" and the next starting with "\n"). The summary
-      // is short enough (a few hundred words) that re-rendering per chunk is cheap.
+      // (or matrix row) is short enough that re-rendering per chunk is cheap.
+      function renderParagraphInto(el, text, showCursor) {
+        el.innerHTML = "";
+        var p = document.createElement("p");
+        p.className = usesParagraphs ? "detail-card-body ai-summary-paragraph" : "detail-card-body";
+        p.appendChild(document.createTextNode(text));
+        if (showCursor) {
+          var cursor = document.createElement("span");
+          cursor.className = "typing-cursor";
+          p.appendChild(cursor);
+        }
+        el.appendChild(p);
+      }
+
       function render(showCursor) {
-        target.innerHTML = "";
-        var paragraphs = usesParagraphs
+        var paragraphs = (usesParagraphs || multiTarget)
           ? fullText.split(/\n{2,}/).map(function (s) { return s.trim(); }).filter(Boolean)
           : [fullText];
         if (paragraphs.length === 0) paragraphs = [""];
+
+        if (multiTarget) {
+          targetIds.forEach(function (id, i) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            renderParagraphInto(el, paragraphs[i] || "", showCursor && i === targetIds.length - 1);
+          });
+          return;
+        }
+
+        target.innerHTML = "";
         paragraphs.forEach(function (text, i) {
           var p = document.createElement("p");
           p.className = usesParagraphs ? "detail-card-body ai-summary-paragraph" : "detail-card-body";
@@ -109,9 +142,21 @@ document.addEventListener("DOMContentLoaded", function () {
         });
       }
 
-      render(true); // shows one empty paragraph with a cursor before anything arrives
+      render(true); // shows one empty paragraph (or row of them) with a cursor before anything arrives
 
       function showError(message) {
+        if (multiTarget) {
+          targetIds.forEach(function (id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.innerHTML = "";
+            var errorParagraph = document.createElement("p");
+            errorParagraph.className = "detail-card-empty stream-error";
+            errorParagraph.textContent = message;
+            el.appendChild(errorParagraph);
+          });
+          return;
+        }
         target.innerHTML = "";
         var errorParagraph = document.createElement("p");
         errorParagraph.className = "detail-card-empty stream-error";
@@ -169,7 +214,7 @@ document.addEventListener("DOMContentLoaded", function () {
                   finished = true;
                   fullText = event.text || fullText;
                   render(false);
-                  finish("Regenerate");
+                  finish(button.dataset.regenerateLabel || "Regenerate");
                 } else if (event.delta) {
                   fullText += event.delta;
                   render(true);
