@@ -244,7 +244,10 @@ into another account's data.
 ### Sprint 3 - AI Paper Analysis
 - **OpenAI-powered AI Summary:** a structured, 300-500 word summary generated for any
   saved paper, streamed live into the page as it's written rather than appearing all
-  at once after a wait.
+  at once after a wait. The summary always renders as six distinct, justified
+  paragraphs in a fixed order - author(s) and research question, problem statement and
+  proposed solution, methodology, results/findings, conclusion, and critical
+  reflection - both while it streams in and on every later page load.
 - **Relevance Analysis:** an AI-generated assessment of how relevant a saved paper is
   to a project's specific research question, also streamed live.
 - **Per-paper detail page** (`project_paper_detail.html`): one place to read a saved
