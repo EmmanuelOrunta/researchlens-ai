@@ -215,6 +215,28 @@ def set_paper_summary(session, paper: Paper, summary: str) -> Paper:
     return paper
 
 
+def set_paper_matrix_fields(
+    session, paper: Paper, methodology: str, sample: str, findings: str, limitations: str,
+) -> Paper:
+    """
+    Store the four Literature Matrix fields on a paper (see
+    services/openai_service.py's stream_extract_matrix_fields()) - shared across every
+    project the paper is saved to, same as set_paper_summary() above. Used both after
+    an AI extraction and after a manual edit (routes/papers_routes.py's
+    edit_matrix_fields()), so matrix_generated_at reflects "last set", not strictly
+    "last AI-generated" - matching how the rest of this app treats a manual edit as
+    just as authoritative as an AI one.
+    """
+    paper.matrix_methodology = (methodology or "").strip() or None
+    paper.matrix_sample = (sample or "").strip() or None
+    paper.matrix_findings = (findings or "").strip() or None
+    paper.matrix_limitations = (limitations or "").strip() or None
+    paper.matrix_generated_at = datetime.utcnow()
+    session.commit()
+    session.refresh(paper)
+    return paper
+
+
 def get_saved_paper(session, project_id: int, paper_id: int):
     """
     The SavedPaper link row for one paper in one project - this is where per-project
