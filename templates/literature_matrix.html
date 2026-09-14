@@ -1,0 +1,114 @@
+{% extends "base_app.html" %}
+{% block title %}Literature Matrix · {{ project.title }}{% endblock %}
+{% block content %}
+  <a href="{{ url_for('main.project_detail', project_id=project.id) }}" class="back-link">← Back to {{ project.title }}</a>
+
+  <h1 class="page-title">📋 Literature Matrix</h1>
+  <p class="page-subtitle">
+    A side-by-side comparison of every paper saved to <strong>{{ project.title }}</strong>.
+    Extract each row with AI, then edit any field directly.
+  </p>
+
+  {% if not papers %}
+    <div class="empty-state">
+      <p>No papers saved to this project yet.</p>
+      <a href="{{ url_for('papers.search', project_id=project.id) }}" class="btn btn-inline" style="margin-top: 0.8rem;">+ Add Papers</a>
+    </div>
+  {% else %}
+    {% if not openai_configured %}
+      <p class="detail-card-empty" style="margin-bottom: 1rem;">Add a free OPENAI_API_KEY in .env to extract matrix fields with AI - see .env.example. You can still fill in fields by hand below.</p>
+    {% endif %}
+
+    <div class="matrix-table-wrap">
+      <table class="matrix-table">
+        <thead>
+          <tr>
+            <th class="matrix-col-paper">Paper</th>
+            <th>Methodology</th>
+            <th>Sample</th>
+            <th>Findings</th>
+            <th>Limitations</th>
+            <th class="matrix-col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for paper in papers %}
+            {% set can_extract = paper.abstract or paper.extracted_text or paper.open_access_pdf_url %}
+            <tr id="matrix-view-{{ paper.id }}">
+              <td class="matrix-col-paper">
+                <div class="matrix-paper-title"><a href="{{ url_for('papers.paper_detail', paper_id=paper.id) }}">{{ paper.title }}</a></div>
+                <div class="matrix-paper-meta">
+                  {{ paper.authors or "Unknown authors" }}{% if paper.year %} &middot; {{ paper.year }}{% endif %}
+                </div>
+              </td>
+              <td id="matrix-methodology-{{ paper.id }}">
+                {% if paper.matrix_methodology %}<p class="detail-card-body">{{ paper.matrix_methodology }}</p>
+                {% else %}<p class="detail-card-empty">Not extracted yet.</p>{% endif %}
+              </td>
+              <td id="matrix-sample-{{ paper.id }}">
+                {% if paper.matrix_sample %}<p class="detail-card-body">{{ paper.matrix_sample }}</p>
+                {% else %}<p class="detail-card-empty">Not extracted yet.</p>{% endif %}
+              </td>
+              <td id="matrix-findings-{{ paper.id }}">
+                {% if paper.matrix_findings %}<p class="detail-card-body">{{ paper.matrix_findings }}</p>
+                {% else %}<p class="detail-card-empty">Not extracted yet.</p>{% endif %}
+              </td>
+              <td id="matrix-limitations-{{ paper.id }}">
+                {% if paper.matrix_limitations %}<p class="detail-card-body">{{ paper.matrix_limitations }}</p>
+                {% else %}<p class="detail-card-empty">Not extracted yet.</p>{% endif %}
+              </td>
+              <td class="matrix-col-actions">
+                <div class="matrix-actions">
+                  {% if can_extract and openai_configured %}
+                    <button type="button" class="btn btn-secondary btn-sm btn-inline"
+                            data-stream-url="{{ url_for('papers.matrix_extract_stream', paper_id=paper.id) }}"
+                            data-targets="matrix-methodology-{{ paper.id }} matrix-sample-{{ paper.id }} matrix-findings-{{ paper.id }} matrix-limitations-{{ paper.id }}"
+                            data-regenerate-label="Re-extract">
+                      {{ "Re-extract" if paper.matrix_generated_at else "Extract with AI" }}
+                    </button>
+                  {% endif %}
+                  <button type="button" class="btn btn-secondary btn-sm btn-inline toggle-target"
+                          data-toggle-target="matrix-view-{{ paper.id }} matrix-edit-{{ paper.id }}">
+                    Edit
+                  </button>
+                </div>
+              </td>
+            </tr>
+
+            <tr id="matrix-edit-{{ paper.id }}" class="matrix-edit-row" hidden>
+              <td colspan="6">
+                <form method="post" action="{{ url_for('papers.edit_matrix_fields', project_id=project.id, paper_id=paper.id) }}" class="matrix-edit-form">
+                  <div class="matrix-edit-grid">
+                    <div class="field">
+                      <label>Methodology</label>
+                      <textarea name="methodology" rows="3">{{ paper.matrix_methodology or '' }}</textarea>
+                    </div>
+                    <div class="field">
+                      <label>Sample</label>
+                      <textarea name="sample" rows="3">{{ paper.matrix_sample or '' }}</textarea>
+                    </div>
+                    <div class="field">
+                      <label>Findings</label>
+                      <textarea name="findings" rows="3">{{ paper.matrix_findings or '' }}</textarea>
+                    </div>
+                    <div class="field">
+                      <label>Limitations</label>
+                      <textarea name="limitations" rows="3">{{ paper.matrix_limitations or '' }}</textarea>
+                    </div>
+                  </div>
+                  <div class="result-actions">
+                    <button type="submit" class="btn btn-sm btn-inline">Save</button>
+                    <button type="button" class="btn btn-secondary btn-sm btn-inline toggle-target"
+                            data-toggle-target="matrix-view-{{ paper.id }} matrix-edit-{{ paper.id }}">
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+{% endblock %}
