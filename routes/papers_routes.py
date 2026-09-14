@@ -23,6 +23,7 @@ from services.paper_service import (
     create_uploaded_paper,
     save_paper_to_project,
     remove_paper_from_project,
+    get_saved_papers_for_project,
     get_saved_paper_entries_for_project,
     get_saved_paper,
     get_all_papers_for_user,
@@ -31,6 +32,7 @@ from services.paper_service import (
     user_can_access_paper,
     set_paper_summary,
     set_saved_paper_relevance,
+    set_paper_matrix_fields,
     get_or_fetch_source_text,
     get_note_counts_for_saved_paper_ids,
     get_note,
@@ -44,6 +46,7 @@ from services.openai_service import (
     is_configured as openai_is_configured,
     stream_summarize_paper,
     stream_analyze_relevance,
+    stream_extract_matrix_fields,
 )
 from models.paper import Paper
 
@@ -284,6 +287,156 @@ def choose_project_for_search():
         return redirect(url_for("papers.search", project_id=projects[0].id))
 
     return render_template("choose_project.html", projects=projects)
+
+
+@papers_bp.route("/matrix")
+def choose_project_for_matrix():
+    """
+    Entry point for the sidebar's global "Literature Matrix" link. A matrix only makes
+    sense within one project's literature (comparing papers against one project's own
+    research question), so - exactly like choose_project_for_search() above - this
+    skips straight to a lone project's matrix, or asks which project otherwise.
+    """
+    redirect_response = _require_login()
+    if redirect_response:
+        return redirect_response
+
+    db_session = get_session()
+    try:
+        projects = get_projects_for_user(db_session, session["user_id"])
+    finally:
+        db_session.close()
+
+    if not projects:
+        flash("Create a research project and save some papers to it first, then you can build its literature matrix.", "error")
+        return redirect(url_for("main.new_project"))
+
+    if len(projects) == 1:
+        return redirect(url_for("papers.literature_matrix", project_id=projects[0].id))
+
+    return render_template(
+        "choose_project.html", projects=projects,
+        next_endpoint="papers.literature_matrix",
+        heading="Which project's literature matrix?",
+        subtitle="The comparison table is built from one project's saved papers at a time.",
+    )
+
+
+@papers_bp.route("/projects/<int:project_id>/matrix", methods=["GET"])
+def literature_matrix(project_id):
+    """
+    The Literature Matrix (Sprint 4, started early): a comparison table across every
+    paper saved to this project, with AI-extracted (and directly user-editable)
+    Methodology / Sample / Findings / Limitations fields for each - see
+    templates/literature_matrix.html. The four fields live on Paper (see
+    models/paper.py), same as the AI Summary, so they're shared if the same paper is
+    also saved to another project - only which papers show up here is project-scoped.
+    """
+    redirect_response = _require_login()
+    if redirect_response:
+        return redirect_response
+
+    db_session = get_session()
+    try:
+        project = _get_owned_project_or_404(db_session, project_id)
+        papers = get_saved_papers_for_project(db_session, project_id)
+    finally:
+        db_session.close()
+
+    return render_template(
+        "literature_matrix.html", project=project, papers=papers,
+        openai_configured=openai_is_configured(),
+    )
+
+
+@papers_bp.route("/projects/<int:project_id>/papers/<int:paper_id>/matrix/edit", methods=["POST"])
+def edit_matrix_fields(project_id, paper_id):
+    """
+    Manually edit (or hand-correct an AI extraction of) this paper's four Literature
+    Matrix fields - the matrix is AI-extracted but directly user-editable, unlike the
+    AI Summary. Scoped under a project in the URL only so the redirect lands back on
+    that project's matrix page; the fields themselves are saved on the Paper (shared
+    across every project it's saved to), via set_paper_matrix_fields().
+    """
+    redirect_response = _require_login()
+    if redirect_response:
+        return redirect_response
+
+    db_session = get_session()
+    try:
+        _get_owned_project_or_404(db_session, project_id)
+        paper = db_session.query(Paper).get(paper_id)
+        if paper is None or not user_can_access_paper(db_session, session["user_id"], paper_id):
+            abort(404)
+        set_paper_matrix_fields(
+            db_session, paper,
+            methodology=request.form.get("methodology", ""),
+            sample=request.form.get("sample", ""),
+            findings=request.form.get("findings", ""),
+            limitations=request.form.get("limitations", ""),
+        )
+    finally:
+        db_session.close()
+
+    flash("Literature matrix row updated.", "success")
+    return redirect(url_for("papers.literature_matrix", project_id=project_id))
+
+
+@papers_bp.route("/papers/<int:paper_id>/matrix/stream", methods=["POST"])
+def matrix_extract_stream(paper_id):
+    """
+    Streams this paper's four Literature Matrix fields live, one chunk of text at a
+    time, exactly like summarize_stream() below - see that function's docstring for the
+    NDJSON event shapes and the two-phase session lifecycle this follows. Not scoped to
+    a project for the same reason summarize_stream() isn't: the extracted fields live
+    on Paper and are shared across every project the paper is saved to.
+
+    On {"done": true}, the full text is split back into its four blank-line-separated
+    paragraphs (see stream_extract_matrix_fields()'s system prompt) and stored via
+    set_paper_matrix_fields() - static/js/app.js's [data-stream-url] handler does the
+    same split independently, purely for rendering, into this row's four table cells
+    (via data-targets) as the text streams in.
+    """
+    redirect_response = _require_login()
+    if redirect_response:
+        return redirect_response
+
+    db_session = get_session()
+    try:
+        if not user_can_access_paper(db_session, session["user_id"], paper_id):
+            abort(404)
+        paper = db_session.query(Paper).get(paper_id)
+        if paper is None:
+            abort(404)
+        title = paper.title
+        authors = paper.authors
+        year = paper.year
+        source_text, text_error = get_or_fetch_source_text(db_session, paper)
+    finally:
+        db_session.close()
+
+    def generate():
+        if text_error:
+            yield json.dumps({"error": text_error}) + "\n"
+            return
+        for event in stream_extract_matrix_fields(title, authors, year, source_text):
+            if event.get("done"):
+                fields = [p.strip() for p in event["text"].split("\n\n") if p.strip()]
+                fields += [""] * (4 - len(fields))  # pad, in case the model returns fewer than four
+                write_session = get_session()
+                try:
+                    fresh_paper = write_session.query(Paper).get(paper_id)
+                    if fresh_paper is not None:
+                        set_paper_matrix_fields(
+                            write_session, fresh_paper,
+                            methodology=fields[0], sample=fields[1],
+                            findings=fields[2], limitations=fields[3],
+                        )
+                finally:
+                    write_session.close()
+            yield json.dumps(event) + "\n"
+
+    return Response(generate(), mimetype="application/x-ndjson")
 
 
 @papers_bp.route("/papers")
