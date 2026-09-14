@@ -54,6 +54,11 @@ _ADDED_COLUMNS = [
     ("saved_papers", "notes", "TEXT"),
     ("saved_papers", "relevance_analysis", "TEXT"),
     ("saved_papers", "relevance_generated_at", "DATETIME"),
+    ("papers", "matrix_methodology", "TEXT"),
+    ("papers", "matrix_sample", "TEXT"),
+    ("papers", "matrix_findings", "TEXT"),
+    ("papers", "matrix_limitations", "TEXT"),
+    ("papers", "matrix_generated_at", "DATETIME"),
 ]
 
 
