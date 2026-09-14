@@ -785,6 +785,62 @@ a.project-card-link:hover {
 .pagination-status { color: var(--color-text-muted); font-size: 0.85rem; font-weight: 600; }
 .pagination-disabled { opacity: 0.4; pointer-events: none; }
 
+/* ---------- Literature Matrix (Sprint 4, started early) ---------- */
+/* A comparison table across a project's saved papers - Methodology / Sample /
+   Findings / Limitations, AI-extracted (see services/openai_service.py's
+   stream_extract_matrix_fields()) but directly user-editable per row. Each paper gets
+   two <tr>s: a view row and a hidden edit row swapped in via the existing
+   .toggle-target pattern (same mechanism as the Notes section's Edit/Cancel). */
+.matrix-table-wrap {
+  overflow-x: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+.matrix-table {
+  width: 100%;
+  min-width: 920px;
+  border-collapse: collapse;
+}
+.matrix-table th,
+.matrix-table td {
+  text-align: left;
+  padding: 0.85rem 1rem;
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-border);
+}
+.matrix-table th {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  background: #FBF8F2;
+  white-space: nowrap;
+}
+.matrix-table tbody tr:last-child td { border-bottom: none; }
+.matrix-table td .detail-card-body,
+.matrix-table td .detail-card-empty { font-size: 0.88rem; }
+.matrix-col-paper { width: 220px; }
+.matrix-paper-title { font-weight: 700; font-size: 0.94rem; }
+.matrix-paper-title a { text-decoration: none; }
+.matrix-paper-title a:hover { color: var(--color-primary); }
+.matrix-paper-meta { color: var(--color-text-muted); font-size: 0.8rem; margin-top: 0.2rem; }
+.matrix-col-actions { width: 160px; }
+.matrix-actions { display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-start; }
+
+.matrix-edit-row td { background: #FBF9F4; }
+.matrix-edit-form { margin: 0; }
+.matrix-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+.matrix-edit-grid .field { margin-bottom: 0; }
+.matrix-edit-grid textarea { font-size: 0.88rem; }
+
 .result-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
