@@ -43,6 +43,16 @@ class Paper(Base):
     open_access_pdf_url = Column(String(500), nullable=True)
     summary = Column(Text, nullable=True)                          # AI-generated summary (Sprint 3), NULL until generated
     summary_generated_at = Column(DateTime, nullable=True)
+    # Literature Matrix fields: like `summary` above, these live on Paper rather than
+    # SavedPaper because a paper's methodology/sample/findings/limitations don't depend
+    # on which project it's saved to. AI-extracted (see services/openai_service.py's
+    # stream_extract_matrix_fields()) but also directly user-editable, unlike summary -
+    # see routes/papers_routes.py's edit_matrix_fields().
+    matrix_methodology = Column(Text, nullable=True)
+    matrix_sample = Column(Text, nullable=True)
+    matrix_findings = Column(Text, nullable=True)
+    matrix_limitations = Column(Text, nullable=True)
+    matrix_generated_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     def __repr__(self):
