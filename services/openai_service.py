@@ -227,3 +227,60 @@ def stream_analyze_relevance(paper_title: str, paper_text: str, research_questio
         f"Paper abstract/text:\n{paper_text}"
     )
     yield from _stream(system_prompt, user_content)
+
+
+def stream_extract_matrix_fields(title: str, authors: str, year, text: str):
+    """
+    Extract the four Literature Matrix fields from a paper's abstract (or extracted PDF
+    text) - Methodology, Sample, Findings, Limitations, in that fixed order, each as a
+    short plain-prose paragraph separated by a blank line (same "exactly N paragraphs,
+    blank-line-separated" contract as stream_summarize_paper() above, just with four
+    fields instead of six paragraphs) - see templates/literature_matrix.html and
+    static/js/app.js's [data-stream-url] handler (data-targets) for how the four
+    paragraphs get split back apart into the matrix table's four separate cells.
+    `text` should be paper.abstract or paper.extracted_text, same as
+    stream_summarize_paper(). The result is AI-extracted but directly user-editable
+    afterwards (see routes/papers_routes.py's edit_matrix_fields()), unlike the AI
+    Summary.
+    """
+    if not (text or "").strip():
+        yield {"error": "This paper has no abstract or extracted text to extract from."}
+        return
+
+    system_prompt = (
+        "You extract structured literature-review fields from an academic paper for a "
+        "student building a comparison matrix across several papers. Produce EXACTLY "
+        "four short paragraphs of plain prose, in this order, with no headings, "
+        "labels, bullet points, numbered lists, or markdown formatting anywhere in the "
+        "output - each paragraph should be 1-3 sentences, concise enough to sit in a "
+        "table cell. Separate every paragraph from the next with a blank line (i.e. "
+        "two newline characters), and do not put a blank line anywhere except between "
+        "these four paragraphs:\n\n"
+        "1. Methodology: the actual methods, techniques, models, or experimental "
+        "design used.\n"
+        "2. Sample: the dataset, participants, materials, or study setting the paper "
+        "draws on - its size or scope if given. If the paper is theoretical or "
+        "doesn't describe an empirical sample, say so briefly instead of inventing "
+        "one.\n"
+        "3. Findings: the paper's key results, specific enough to understand what was "
+        "actually shown.\n"
+        "4. Limitations: the paper's own stated limitations, or - only if the paper "
+        "states none itself - a brief, neutral, fair assessment of a notable gap "
+        "(scope, generalizability, sample size, etc.), written in the third person, "
+        "never as a first-person opinion.\n\n"
+        "Base every claim only on the title/authors/year and abstract or text "
+        "provided below - never invent methodology, sample details, or findings the "
+        "source text doesn't support. If the source text is too thin to support one "
+        "of the four fields with real substance, keep that paragraph short and "
+        "factual rather than filling the gap with invented specifics - but still "
+        "produce exactly four paragraphs, separated by blank lines, every time."
+    )
+    authors_line = authors or "Not specified"
+    year_line = year if year else "Not specified"
+    user_content = (
+        f"Title: {title}\n"
+        f"Authors: {authors_line}\n"
+        f"Year: {year_line}\n\n"
+        f"Abstract/text:\n{text}"
+    )
+    yield from _stream(system_prompt, user_content)
