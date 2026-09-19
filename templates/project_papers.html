@@ -11,35 +11,44 @@
   {% if not entries %}
     <div class="empty-state">No papers saved yet. Search academic sources or upload a PDF to get started.</div>
   {% else %}
-    {% for entry in entries %}
-      {% set paper = entry.paper %}
-      {% set saved_paper = entry.saved_paper %}
-      <div class="result-card">
-        <div class="result-title">
-          <a href="{{ url_for('papers.project_paper_detail', project_id=project.id, paper_id=paper.id) }}">{{ paper.title }}</a>
-        </div>
-        <div class="result-meta">
-          {{ paper.authors or "Unknown authors" }}{% if paper.year %} &middot; {{ paper.year }}{% endif %}
-          &middot;
-          <span class="badge-muted">{{ "Uploaded PDF" if paper.source == "upload" else ("OpenAlex" if paper.source == "openalex" else "Semantic Scholar") }}</span>
-          &middot;
-          <span class="badge-muted">{{ "🧠 Summarized" if paper.summary else "🧠 No summary yet" }}</span>
-          <span class="badge-muted">{{ "🎯 Relevance rated" if saved_paper.relevance_analysis else "🎯 Not analysed" }}</span>
-          {% if entry.note_count %}<span class="badge-muted">📝 {{ entry.note_count }} note{{ "s" if entry.note_count != 1 }}</span>{% endif %}
-        </div>
-        {% if paper.abstract %}
-          <p class="result-abstract">{{ paper.abstract[:200] }}{% if paper.abstract|length > 200 %}…{% endif %}</p>
-        {% endif %}
+    <div class="search-form">
+      <input type="text" class="search-input" placeholder="Search this project's saved papers by title or author…"
+             data-filter-target="project-papers-list" data-filter-empty="project-papers-no-matches">
+    </div>
 
-        <div class="result-actions" style="margin-top: 0.6rem;">
-          <a href="{{ url_for('papers.project_paper_detail', project_id=project.id, paper_id=paper.id) }}" class="btn btn-inline">
-            View AI Summary &amp; Notes
-          </a>
-          <form method="post" action="{{ url_for('papers.remove', project_id=project.id, paper_id=paper.id) }}">
-            <button type="submit" class="btn btn-danger-ghost btn-inline">Remove</button>
-          </form>
+    <div id="project-papers-list">
+      {% for entry in entries %}
+        {% set paper = entry.paper %}
+        {% set saved_paper = entry.saved_paper %}
+        <div class="result-card" data-search-text="{{ (paper.title ~ ' ' ~ (paper.authors or '')) | lower }}">
+          <div class="result-title">
+            <a href="{{ url_for('papers.project_paper_detail', project_id=project.id, paper_id=paper.id) }}">{{ paper.title }}</a>
+          </div>
+          <div class="result-meta">
+            {{ paper.authors or "Unknown authors" }}{% if paper.year %} &middot; {{ paper.year }}{% endif %}
+            &middot;
+            <span class="badge-muted">{{ "Uploaded PDF" if paper.source == "upload" else ("OpenAlex" if paper.source == "openalex" else "Semantic Scholar") }}</span>
+            &middot;
+            <span class="badge-muted">{{ "🧠 Summarized" if paper.summary else "🧠 No summary yet" }}</span>
+            <span class="badge-muted">{{ "🎯 Relevance rated" if saved_paper.relevance_analysis else "🎯 Not analysed" }}</span>
+            {% if entry.note_count %}<span class="badge-muted">📝 {{ entry.note_count }} note{{ "s" if entry.note_count != 1 }}</span>{% endif %}
+          </div>
+          {% if paper.abstract %}
+            <p class="result-abstract">{{ paper.abstract[:200] }}{% if paper.abstract|length > 200 %}…{% endif %}</p>
+          {% endif %}
+
+          <div class="result-actions" style="margin-top: 0.6rem;">
+            <a href="{{ url_for('papers.project_paper_detail', project_id=project.id, paper_id=paper.id) }}" class="btn btn-inline">
+              View AI Summary &amp; Notes
+            </a>
+            <form method="post" action="{{ url_for('papers.remove', project_id=project.id, paper_id=paper.id) }}">
+              <button type="submit" class="btn btn-danger-ghost btn-inline">Remove</button>
+            </form>
+          </div>
         </div>
-      </div>
-    {% endfor %}
+      {% endfor %}
+    </div>
+
+    <div id="project-papers-no-matches" class="empty-state" hidden>No saved papers match your search.</div>
   {% endif %}
 {% endblock %}
