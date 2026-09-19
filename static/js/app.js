@@ -236,4 +236,33 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     });
   });
+
+  // Instant client-side search filter for the "My Papers" and a project's "Saved
+  // Papers" lists - filters the already-rendered list by title/authors as you type,
+  // with no server round-trip (my_papers.html / project_papers.html). Each input
+  // carries:
+  //   data-filter-target - id of the container whose direct .result-card children
+  //                         get shown/hidden as you type
+  //   data-filter-empty  - id of the "no results" message to show only when the
+  //                         search has hidden every card
+  // Matching is against each .result-card's own data-search-text attribute (a
+  // lowercased "title authors" string set in the template), not its visible text -
+  // so badges like "Semantic Scholar" or "Uploaded PDF" never accidentally match.
+  document.querySelectorAll("[data-filter-target]").forEach(function (input) {
+    var container = document.getElementById(input.dataset.filterTarget);
+    if (!container) return;
+    var emptyMessage = document.getElementById(input.dataset.filterEmpty);
+    var cards = Array.prototype.slice.call(container.querySelectorAll(".result-card"));
+
+    input.addEventListener("input", function () {
+      var query = input.value.trim().toLowerCase();
+      var visibleCount = 0;
+      cards.forEach(function (card) {
+        var matches = !query || (card.dataset.searchText || "").indexOf(query) !== -1;
+        card.hidden = !matches;
+        if (matches) visibleCount++;
+      });
+      if (emptyMessage) emptyMessage.hidden = visibleCount !== 0;
+    });
+  });
 });
