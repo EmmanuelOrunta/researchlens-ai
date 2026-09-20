@@ -12,12 +12,21 @@
     <div class="search-form">
       <input type="text" class="search-input" placeholder="Search your saved papers by title or author…"
              data-filter-target="my-papers-list" data-filter-empty="my-papers-no-matches">
+      <select class="sort-select" data-sort-target="my-papers-list">
+        <option value="recent">Sort: Recently Added</option>
+        <option value="title">Sort: Title (A-Z)</option>
+        <option value="relevance">Sort: Most Relevant</option>
+      </select>
     </div>
 
     <div id="my-papers-list">
       {% for entry in entries %}
         {% set paper = entry.paper %}
-        <div class="result-card" data-search-text="{{ (paper.title ~ ' ' ~ (paper.authors or '')) | lower }}">
+        <div class="result-card"
+             data-search-text="{{ (paper.title ~ ' ' ~ (paper.authors or '')) | lower }}"
+             data-sort-date="{{ paper.created_at.isoformat() if paper.created_at else '' }}"
+             data-sort-title="{{ paper.title | lower }}"
+             data-sort-relevance="{{ entry.best_relevance if entry.best_relevance is not none else '' }}">
           <div class="result-title">
             <a href="{{ url_for('papers.paper_detail', paper_id=paper.id) }}">{{ paper.title }}</a>
           </div>
@@ -25,6 +34,10 @@
             {{ paper.authors or "Unknown authors" }}{% if paper.year %} &middot; {{ paper.year }}{% endif %}
             &middot;
             <span class="badge-muted">{{ "Uploaded PDF" if paper.source == "upload" else ("OpenAlex" if paper.source == "openalex" else "Semantic Scholar") }}</span>
+            {% if entry.best_relevance is not none %}
+              &middot;
+              <span class="badge-muted">🎯 {{ entry.best_relevance }}/5</span>
+            {% endif %}
           </div>
           {% if paper.abstract %}
             <p class="result-abstract">{{ paper.abstract[:280] }}{% if paper.abstract|length > 280 %}…{% endif %}</p>
