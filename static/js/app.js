@@ -265,4 +265,42 @@ document.addEventListener("DOMContentLoaded", function () {
       if (emptyMessage) emptyMessage.hidden = visibleCount !== 0;
     });
   });
+
+  // Instant client-side sort for the "My Papers" list (my_papers.html) - reorders the
+  // already-rendered .result-card elements in the DOM the moment you pick an option,
+  // with no server round-trip. Independent of the search filter above (both target
+  // the same list container: this reorders cards, the filter shows/hides them - a
+  // hidden card just gets reordered along with the rest, still hidden).
+  //   data-sort-target - id of the container whose .result-card children get reordered
+  // Each .result-card carries its sort keys as data attributes (set in the template):
+  //   data-sort-date      - ISO paper.created_at, for "recent" (newest first)
+  //   data-sort-title     - lowercased paper.title, for "title" (A-Z)
+  //   data-sort-relevance - this paper's best 1-5 AI relevance rating across every
+  //                         project it's saved to, or "" if it's never been rated
+  //                         anywhere - for "relevance" (highest first, unrated last)
+  document.querySelectorAll("[data-sort-target]").forEach(function (select) {
+    var container = document.getElementById(select.dataset.sortTarget);
+    if (!container) return;
+
+    select.addEventListener("change", function () {
+      var cards = Array.prototype.slice.call(container.querySelectorAll(".result-card"));
+      var mode = select.value;
+
+      cards.sort(function (a, b) {
+        if (mode === "title") {
+          return (a.dataset.sortTitle || "").localeCompare(b.dataset.sortTitle || "");
+        }
+        if (mode === "relevance") {
+          var ratingA = a.dataset.sortRelevance === "" ? -1 : Number(a.dataset.sortRelevance);
+          var ratingB = b.dataset.sortRelevance === "" ? -1 : Number(b.dataset.sortRelevance);
+          return ratingB - ratingA;
+        }
+        return (b.dataset.sortDate || "").localeCompare(a.dataset.sortDate || ""); // "recent" (default)
+      });
+
+      // Re-appending each card in its new sorted order moves the existing element
+      // rather than recreating it, so nothing about the card (or its identity) is lost.
+      cards.forEach(function (card) { container.appendChild(card); });
+    });
+  });
 });
