@@ -4,6 +4,7 @@
 # which papers are saved to which research project (the "research library" from the
 # project plan).
 
+import re
 from datetime import datetime
 
 from sqlalchemy import func
@@ -13,6 +14,22 @@ from models.saved_paper import SavedPaper
 from models.project import ResearchProject
 from models.note import Note
 from services.pdf_service import fetch_and_extract_text_from_url
+
+# Matches the "Relevance: X/5" line services/openai_service.py's
+# stream_analyze_relevance() always appends to the end of its output - used to pull a
+# sortable 1-5 number back out of that free-text analysis (see _parse_relevance_rating()
+# and get_all_papers_for_user() below).
+_RELEVANCE_RATING_RE = re.compile(r"Relevance:\s*(\d)/5")
+
+
+def _parse_relevance_rating(analysis_text):
+    """The numeric rating off the end of an AI relevance analysis, or None if this
+    saved paper hasn't been analysed yet (or, for some other reason, the text doesn't
+    end with the expected 'Relevance: X/5' line)."""
+    if not analysis_text:
+        return None
+    match = _RELEVANCE_RATING_RE.search(analysis_text)
+    return int(match.group(1)) if match else None
 
 
 def get_paper_by_external_id(session, external_id: str):
@@ -140,23 +157,43 @@ def user_can_access_paper(session, user_id: int, paper_id: int) -> bool:
 def get_all_papers_for_user(session, user_id: int):
     """
     Every paper saved anywhere across this user's projects (the global "My Papers"
-    page), paired with the project(s) each one belongs to. Returns a list of
-    {"paper": Paper, "projects": [ResearchProject, ...]} dicts.
+    page), paired with the project(s) each one belongs to and its best AI relevance
+    rating. One joined query rather than one get_projects_for_paper() call per paper.
+
+    Returns a list of dicts, newest paper first:
+      {
+        "paper": Paper,
+        "projects": [ResearchProject, ...],
+        "best_relevance": int | None,  # highest 1-5 rating across every project this
+                                        # paper is saved to (see _parse_relevance_
+                                        # rating() above), or None if it hasn't been
+                                        # rated in any of them - powers my_papers.html's
+                                        # "Most Relevant" sort.
+      }
     """
-    papers = (
-        session.query(Paper)
+    rows = (
+        session.query(Paper, SavedPaper, ResearchProject)
         .join(SavedPaper, SavedPaper.paper_id == Paper.id)
         .join(ResearchProject, ResearchProject.id == SavedPaper.project_id)
         .filter(ResearchProject.user_id == user_id)
-        .distinct()
-        .order_by(Paper.created_at.desc())
+        .order_by(Paper.created_at.desc(), SavedPaper.saved_at.desc())
         .all()
     )
 
-    return [
-        {"paper": paper, "projects": get_projects_for_paper(session, user_id, paper.id)}
-        for paper in papers
-    ]
+    entries = []
+    entries_by_paper_id = {}
+    for paper, saved_paper, project in rows:
+        if paper.id not in entries_by_paper_id:
+            item = {"paper": paper, "projects": [], "best_relevance": None}
+            entries_by_paper_id[paper.id] = item
+            entries.append(item)
+        item = entries_by_paper_id[paper.id]
+        item["projects"].append(project)
+        rating = _parse_relevance_rating(saved_paper.relevance_analysis)
+        if rating is not None and (item["best_relevance"] is None or rating > item["best_relevance"]):
+            item["best_relevance"] = rating
+
+    return entries
 
 
 def get_ai_analysis_overview_for_user(session, user_id: int):
