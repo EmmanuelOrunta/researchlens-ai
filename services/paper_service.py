@@ -32,6 +32,17 @@ def _parse_relevance_rating(analysis_text):
     return int(match.group(1)) if match else None
 
 
+def get_relevance_rating(analysis_text) -> int:
+    """
+    Public wrapper around _parse_relevance_rating() for callers outside this module
+    that need a single saved paper's own 1-5 AI relevance rating - e.g.
+    routes/papers_routes.py's project_papers(), which powers project_papers.html's
+    "Most Relevant" sort within one project (simpler than my_papers.html's version,
+    since here there's exactly one relevance_analysis to read, not one per project).
+    """
+    return _parse_relevance_rating(analysis_text)
+
+
 def get_paper_by_external_id(session, external_id: str):
     """
     Look up a paper we've already saved before, by Semantic Scholar's paperId.
