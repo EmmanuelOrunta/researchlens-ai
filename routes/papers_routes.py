@@ -49,6 +49,7 @@ from services.openai_service import (
     stream_analyze_relevance,
     stream_extract_matrix_fields,
 )
+from services.export_service import build_matrix_excel, build_matrix_pdf, export_filename
 from models.paper import Paper
 
 papers_bp = Blueprint("papers", __name__)
@@ -347,6 +348,52 @@ def literature_matrix(project_id):
     return render_template(
         "literature_matrix.html", project=project, papers=papers,
         openai_configured=openai_is_configured(),
+    )
+
+
+@papers_bp.route("/projects/<int:project_id>/matrix/export.xlsx", methods=["GET"])
+def export_matrix_excel(project_id):
+    """Download the Literature Matrix as an Excel workbook - see services/export_service.py."""
+    redirect_response = _require_login()
+    if redirect_response:
+        return redirect_response
+
+    db_session = get_session()
+    try:
+        project = _get_owned_project_or_404(db_session, project_id)
+        papers = get_saved_papers_for_project(db_session, project_id)
+    finally:
+        db_session.close()
+
+    buffer = build_matrix_excel(project, papers)
+    return send_file(
+        buffer,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=export_filename(project, "xlsx"),
+    )
+
+
+@papers_bp.route("/projects/<int:project_id>/matrix/export.pdf", methods=["GET"])
+def export_matrix_pdf(project_id):
+    """Download the Literature Matrix as a PDF - see services/export_service.py."""
+    redirect_response = _require_login()
+    if redirect_response:
+        return redirect_response
+
+    db_session = get_session()
+    try:
+        project = _get_owned_project_or_404(db_session, project_id)
+        papers = get_saved_papers_for_project(db_session, project_id)
+    finally:
+        db_session.close()
+
+    buffer = build_matrix_pdf(project, papers)
+    return send_file(
+        buffer,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=export_filename(project, "pdf"),
     )
 
 
