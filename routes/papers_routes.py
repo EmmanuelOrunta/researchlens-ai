@@ -24,6 +24,7 @@ from services.paper_service import (
     save_paper_to_project,
     remove_paper_from_project,
     get_saved_papers_for_project,
+    get_relevance_rating,
     get_saved_paper_entries_for_project,
     get_saved_paper,
     get_all_papers_for_user,
@@ -539,7 +540,11 @@ def project_papers(project_id):
         pairs = get_saved_paper_entries_for_project(db_session, project_id)
         note_counts = get_note_counts_for_saved_paper_ids(db_session, [sp.id for _, sp in pairs])
         entries = [
-            {"paper": paper, "saved_paper": saved_paper, "note_count": note_counts.get(saved_paper.id, 0)}
+            {
+                "paper": paper, "saved_paper": saved_paper,
+                "note_count": note_counts.get(saved_paper.id, 0),
+                "relevance_rating": get_relevance_rating(saved_paper.relevance_analysis),
+            }
             for paper, saved_paper in pairs
         ]
     finally:
