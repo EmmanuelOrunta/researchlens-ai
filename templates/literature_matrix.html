@@ -15,6 +15,11 @@
       <a href="{{ url_for('papers.search', project_id=project.id) }}" class="btn btn-inline" style="margin-top: 0.8rem;">+ Add Papers</a>
     </div>
   {% else %}
+    <div class="matrix-export-actions">
+      <a href="{{ url_for('papers.export_matrix_excel', project_id=project.id) }}" class="btn btn-secondary btn-inline">⬇ Export Excel</a>
+      <a href="{{ url_for('papers.export_matrix_pdf', project_id=project.id) }}" class="btn btn-secondary btn-inline">⬇ Export PDF</a>
+    </div>
+
     {% if not openai_configured %}
       <p class="detail-card-empty" style="margin-bottom: 1rem;">Add a free OPENAI_API_KEY in .env to extract matrix fields with AI - see .env.example. You can still fill in fields by hand below.</p>
     {% endif %}
