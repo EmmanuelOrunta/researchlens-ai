@@ -812,6 +812,11 @@ a.project-card-link:hover {
    stream_extract_matrix_fields()) but directly user-editable per row. Each paper gets
    two <tr>s: a view row and a hidden edit row swapped in via the existing
    .toggle-target pattern (same mechanism as the Notes section's Edit/Cancel). */
+.matrix-export-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
 .matrix-table-wrap {
   overflow-x: auto;
   background: var(--color-surface);
