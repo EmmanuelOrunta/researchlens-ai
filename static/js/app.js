@@ -303,4 +303,31 @@ document.addEventListener("DOMContentLoaded", function () {
       cards.forEach(function (card) { container.appendChild(card); });
     });
   });
+
+  // Generic dropdown menu - e.g. the Literature Matrix's "Export" button, whose menu
+  // holds the Excel/PDF/Word download links (literature_matrix.html). A wrapper marked
+  // data-dropdown holds one data-dropdown-toggle button and one data-dropdown-menu
+  // panel; clicking the button shows/hides the panel, which also closes on choosing a
+  // menu item, clicking outside, or pressing Escape - so it never gets left open.
+  document.querySelectorAll("[data-dropdown]").forEach(function (wrapper) {
+    var toggle = wrapper.querySelector("[data-dropdown-toggle]");
+    var menu = wrapper.querySelector("[data-dropdown-menu]");
+    if (!toggle || !menu) return;
+
+    function closeMenu() { menu.hidden = true; }
+
+    toggle.addEventListener("click", function (event) {
+      event.stopPropagation();
+      menu.hidden = !menu.hidden;
+    });
+    menu.querySelectorAll("a").forEach(function (link) {
+      link.addEventListener("click", closeMenu);
+    });
+    document.addEventListener("click", function (event) {
+      if (!menu.hidden && !wrapper.contains(event.target)) closeMenu();
+    });
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") closeMenu();
+    });
+  });
 });
