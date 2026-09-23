@@ -813,9 +813,38 @@ a.project-card-link:hover {
    two <tr>s: a view row and a hidden edit row swapped in via the existing
    .toggle-target pattern (same mechanism as the Notes section's Edit/Cancel). */
 .matrix-export-actions {
-  display: flex;
-  gap: 0.6rem;
   margin-bottom: 1rem;
+}
+
+/* Generic dropdown menu (static/js/app.js's [data-dropdown] handler) - currently just
+   the Export button above, but written generically since any future button-triggered
+   menu can reuse it by copying the three data-dropdown* attributes. */
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  min-width: 190px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-hover);
+  overflow: hidden;
+  z-index: 20;
+}
+.dropdown-item {
+  display: block;
+  padding: 0.6rem 0.9rem;
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+.dropdown-item:hover {
+  background: #FBF8F2;
 }
 .matrix-table-wrap {
   overflow-x: auto;
