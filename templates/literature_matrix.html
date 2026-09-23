@@ -16,8 +16,14 @@
     </div>
   {% else %}
     <div class="matrix-export-actions">
-      <a href="{{ url_for('papers.export_matrix_excel', project_id=project.id) }}" class="btn btn-secondary btn-inline">⬇ Export Excel</a>
-      <a href="{{ url_for('papers.export_matrix_pdf', project_id=project.id) }}" class="btn btn-secondary btn-inline">⬇ Export PDF</a>
+      <div class="dropdown" data-dropdown>
+        <button type="button" class="btn btn-secondary btn-inline" data-dropdown-toggle>⬇ Export ▾</button>
+        <div class="dropdown-menu" data-dropdown-menu hidden>
+          <a href="{{ url_for('papers.export_matrix_excel', project_id=project.id) }}" class="dropdown-item">📊 Excel (.xlsx)</a>
+          <a href="{{ url_for('papers.export_matrix_pdf', project_id=project.id) }}" class="dropdown-item">📄 PDF (.pdf)</a>
+          <a href="{{ url_for('papers.export_matrix_docx', project_id=project.id) }}" class="dropdown-item">📝 Word (.docx)</a>
+        </div>
+      </div>
     </div>
 
     {% if not openai_configured %}
