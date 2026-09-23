@@ -1,11 +1,12 @@
 # services/export_service.py
 #
 # Builds downloadable exports of the Literature Matrix (see routes/papers_routes.py's
-# export_matrix_excel() / export_matrix_pdf(), and templates/literature_matrix.html's
-# "Export" buttons) - an Excel workbook via openpyxl and a PDF via reportlab, built
-# from the same saved-papers data so the two formats never drift apart.
+# export_matrix_excel() / export_matrix_pdf() / export_matrix_docx(), and
+# templates/literature_matrix.html's "Export" dropdown) - an Excel workbook via
+# openpyxl, a PDF via reportlab, and a Word document via python-docx, all built from
+# the same saved-papers data so the three formats never drift apart.
 #
-# Both builders return an in-memory BytesIO, never a temp file on disk, so they drop
+# Every builder returns an in-memory BytesIO, never a temp file on disk, so they drop
 # straight into Flask's send_file().
 
 import io
@@ -22,6 +23,13 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Table, TableStyle
 from xml.sax.saxutils import escape as _xml_escape
+
+from docx import Document
+from docx.enum.section import WD_ORIENT
+from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from docx.shared import Inches, Pt, RGBColor
 
 COLUMNS = ["Paper", "Authors", "Year", "Methodology", "Sample", "Findings", "Limitations"]
 
@@ -171,5 +179,80 @@ def build_matrix_pdf(project, papers) -> io.BytesIO:
     elements.append(table)
 
     doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
+
+def _shade_cell(cell, hex_color):
+    """python-docx has no cell-background API - set it via the cell's own XML directly."""
+    shading = OxmlElement("w:shd")
+    shading.set(qn("w:fill"), hex_color)
+    cell._tc.get_or_add_tcPr().append(shading)
+
+
+def _mark_repeat_header(row):
+    """Flags a table row to repeat as a header on every page it spans across."""
+    row_props = row._tr.get_or_add_trPr()
+    header_flag = OxmlElement("w:tblHeader")
+    header_flag.set(qn("w:val"), "true")
+    row_props.append(header_flag)
+
+
+DOCX_COL_WIDTHS = [Inches(1.7), Inches(1.3), Inches(0.6), Inches(1.9), Inches(1.7), Inches(1.9), Inches(1.7)]
+
+
+def build_matrix_docx(project, papers) -> io.BytesIO:
+    """
+    A landscape Word document of the same Literature Matrix data as build_matrix_excel()
+    and build_matrix_pdf(): a title, a meta line, then a 7-column table with a shaded,
+    repeating header row. No markup-escaping is needed here (unlike the PDF) - python-docx
+    writes cell text as plain text runs, not through a markup mini-language.
+    """
+    doc = Document()
+
+    section = doc.sections[0]
+    section.orientation = WD_ORIENT.LANDSCAPE
+    section.page_width, section.page_height = section.page_height, section.page_width
+    section.left_margin = section.right_margin = Inches(0.5)
+    section.top_margin = section.bottom_margin = Inches(0.5)
+
+    title = doc.add_heading(level=1)
+    title_run = title.add_run(f"Literature Matrix – {project.title}")
+    title_run.font.size = Pt(18)
+
+    paper_word = "paper" if len(papers) == 1 else "papers"
+    meta = doc.add_paragraph()
+    meta_run = meta.add_run(f"Exported {datetime.utcnow().strftime('%B %d, %Y')} · {len(papers)} {paper_word}")
+    meta_run.italic = True
+    meta_run.font.size = Pt(9)
+    meta_run.font.color.rgb = RGBColor(0x6B, 0x72, 0x80)
+    doc.add_paragraph()  # spacer before the table
+
+    table = doc.add_table(rows=1, cols=len(COLUMNS))
+    table.style = "Table Grid"
+    table.alignment = WD_TABLE_ALIGNMENT.LEFT
+    table.autofit = False
+
+    header_cells = table.rows[0].cells
+    for i, (col_name, width) in enumerate(zip(COLUMNS, DOCX_COL_WIDTHS)):
+        header_cells[i].width = width
+        header_cells[i].text = ""
+        run = header_cells[i].paragraphs[0].add_run(col_name)
+        run.bold = True
+        run.font.size = Pt(9)
+        run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+        _shade_cell(header_cells[i], NAVY)
+    _mark_repeat_header(table.rows[0])
+
+    for paper in papers:
+        row_cells = table.add_row().cells
+        for i, (value, width) in enumerate(zip(_row_for_paper(paper), DOCX_COL_WIDTHS)):
+            row_cells[i].width = width
+            row_cells[i].text = str(value if value not in (None, "") else "")
+            for run in row_cells[i].paragraphs[0].runs:
+                run.font.size = Pt(9.5)
+
+    buffer = io.BytesIO()
+    doc.save(buffer)
     buffer.seek(0)
     return buffer
