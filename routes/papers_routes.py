@@ -49,7 +49,7 @@ from services.openai_service import (
     stream_analyze_relevance,
     stream_extract_matrix_fields,
 )
-from services.export_service import build_matrix_excel, build_matrix_pdf, export_filename
+from services.export_service import build_matrix_excel, build_matrix_pdf, build_matrix_docx, export_filename
 from models.paper import Paper
 
 papers_bp = Blueprint("papers", __name__)
@@ -371,6 +371,29 @@ def export_matrix_excel(project_id):
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         as_attachment=True,
         download_name=export_filename(project, "xlsx"),
+    )
+
+
+@papers_bp.route("/projects/<int:project_id>/matrix/export.docx", methods=["GET"])
+def export_matrix_docx(project_id):
+    """Download the Literature Matrix as a Word document - see services/export_service.py."""
+    redirect_response = _require_login()
+    if redirect_response:
+        return redirect_response
+
+    db_session = get_session()
+    try:
+        project = _get_owned_project_or_404(db_session, project_id)
+        papers = get_saved_papers_for_project(db_session, project_id)
+    finally:
+        db_session.close()
+
+    buffer = build_matrix_docx(project, papers)
+    return send_file(
+        buffer,
+        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        as_attachment=True,
+        download_name=export_filename(project, "docx"),
     )
 
 
