@@ -655,6 +655,49 @@ a.project-card-link:hover {
   50%, 100% { opacity: 0; }
 }
 
+/* Paper Synthesis (Sprint 4) - a single flowing AI narrative across whichever saved
+   papers the user checks below, rather than the Literature Matrix's row-by-row
+   structured comparison. See templates/paper_synthesis.html and
+   services/openai_service.py's stream_synthesize_papers(). */
+.synthesis-select-all {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.synthesis-paper-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.synthesis-paper-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.85rem;
+  background: #FBF9F4;
+  cursor: pointer;
+}
+.synthesis-paper-option input[type="checkbox"] {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+.synthesis-paper-title { display: block; font-weight: 600; font-size: 0.9rem; }
+.synthesis-paper-meta { display: block; font-size: 0.78rem; color: var(--color-text-muted); margin-top: 0.15rem; }
+.synthesis-based-on {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+  margin: 0 0 0.8rem;
+}
+
 /* Each saved paper can carry several separate notes (Sprint 3) - every note renders
    as its own small nested "file" card inside the Notes detail-card, distinct from
    the notes list around it. See templates/project_paper_detail.html and
