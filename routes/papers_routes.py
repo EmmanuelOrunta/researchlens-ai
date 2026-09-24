@@ -14,7 +14,7 @@ import json
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort, send_file, Response
 
 from services.database_service import get_session
-from services.project_service import get_project_for_user, get_projects_for_user
+from services.project_service import get_project_for_user, get_projects_for_user, set_project_synthesis
 from services.semantic_scholar_service import search_papers as search_semantic_scholar
 from services.openalex_service import search_papers as search_openalex
 from services.paper_service import (
@@ -41,6 +41,7 @@ from services.paper_service import (
     update_note,
     delete_note,
     ensure_legacy_notes_migrated,
+    build_synthesis_capsule,
 )
 from services.pdf_service import is_allowed_pdf, save_uploaded_pdf, extract_text_from_pdf
 from services.openai_service import (
@@ -48,9 +49,11 @@ from services.openai_service import (
     stream_summarize_paper,
     stream_analyze_relevance,
     stream_extract_matrix_fields,
+    stream_synthesize_papers,
 )
 from services.export_service import build_matrix_excel, build_matrix_pdf, build_matrix_docx, export_filename
 from models.paper import Paper
+from models.project import ResearchProject
 
 papers_bp = Blueprint("papers", __name__)
 
@@ -418,6 +421,148 @@ def export_matrix_pdf(project_id):
         as_attachment=True,
         download_name=export_filename(project, "pdf"),
     )
+
+
+@papers_bp.route("/synthesis")
+def choose_project_for_synthesis():
+    """
+    Entry point for the sidebar's "Paper Synthesis" link - exactly like
+    choose_project_for_matrix() above, a synthesis only makes sense within one
+    project's saved papers, so this skips straight to a lone project's synthesis page,
+    or asks which project otherwise.
+    """
+    redirect_response = _require_login()
+    if redirect_response:
+        return redirect_response
+
+    db_session = get_session()
+    try:
+        projects = get_projects_for_user(db_session, session["user_id"])
+    finally:
+        db_session.close()
+
+    if not projects:
+        flash("Create a research project and save some papers to it first, then you can build a synthesis.", "error")
+        return redirect(url_for("main.new_project"))
+
+    if len(projects) == 1:
+        return redirect(url_for("papers.paper_synthesis", project_id=projects[0].id))
+
+    return render_template(
+        "choose_project.html", projects=projects,
+        next_endpoint="papers.paper_synthesis",
+        heading="Which project's papers do you want to synthesize?",
+        subtitle="The synthesis draws on whichever papers you select from one project's saved library.",
+    )
+
+
+@papers_bp.route("/projects/<int:project_id>/synthesis", methods=["GET"])
+def paper_synthesis(project_id):
+    """
+    Paper Synthesis (Sprint 4): a single flowing, multi-paragraph AI narrative across
+    whichever of this project's saved papers the user selects - summarizing,
+    synthesizing, comparing, and critiquing them together, the way a literature
+    review's own "Synthesis Review" section would (as opposed to the Literature
+    Matrix's row-by-row structured comparison). See templates/paper_synthesis.html and
+    services/openai_service.py's stream_synthesize_papers().
+
+    selected_ids pre-checks whichever papers the CURRENT synthesis_text (if any) was
+    generated from, and synthesis_papers resolves those same ids to full Paper objects
+    (for the "Based on: ..." line) - both computed here rather than in the template,
+    since project.synthesis_paper_ids is just a raw comma-separated string on the model.
+    """
+    redirect_response = _require_login()
+    if redirect_response:
+        return redirect_response
+
+    db_session = get_session()
+    try:
+        project = _get_owned_project_or_404(db_session, project_id)
+        papers = get_saved_papers_for_project(db_session, project_id)
+
+        selected_ids = set()
+        synthesis_papers = []
+        if project.synthesis_paper_ids:
+            ids = [int(pid) for pid in project.synthesis_paper_ids.split(",") if pid.strip().isdigit()]
+            papers_by_id = {paper.id: paper for paper in papers}
+            selected_ids = {pid for pid in ids if pid in papers_by_id}
+            synthesis_papers = [papers_by_id[pid] for pid in ids if pid in papers_by_id]
+    finally:
+        db_session.close()
+
+    return render_template(
+        "paper_synthesis.html", project=project, papers=papers,
+        selected_ids=selected_ids, synthesis_papers=synthesis_papers,
+        openai_configured=openai_is_configured(),
+    )
+
+
+@papers_bp.route("/projects/<int:project_id>/synthesis/stream", methods=["POST"])
+def synthesis_stream(project_id):
+    """
+    Streams the Paper Synthesis live, one chunk of text at a time - see
+    summarize_stream() below for the NDJSON event shapes and the two-phase session
+    lifecycle this follows. Unlike every other AI stream route in this file, the set of
+    papers to use isn't fixed by the URL - it comes from the request body (repeated
+    paper_ids=<id> fields, one per checked box - see templates/paper_synthesis.html and
+    static/js/app.js's [data-stream-url] handler's data-paper-checkbox-name support),
+    since which papers to synthesize is a per-generation choice the user makes each
+    time, not something tied to a single paper or a fixed project setting.
+
+    Submitted ids are re-validated against this project's OWN saved papers server-side
+    (never trusting the client's list outright) and de-duplicated while preserving
+    submission order, the same defense-in-depth every other route here applies to
+    user-supplied ids.
+    """
+    redirect_response = _require_login()
+    if redirect_response:
+        return redirect_response
+
+    requested_ids = [int(pid) for pid in request.form.getlist("paper_ids") if pid.strip().isdigit()]
+
+    db_session = get_session()
+    try:
+        project = _get_owned_project_or_404(db_session, project_id)
+        project_papers = get_saved_papers_for_project(db_session, project_id)
+        papers_by_id = {paper.id: paper for paper in project_papers}
+
+        seen = set()
+        ordered_ids = []
+        for pid in requested_ids:
+            if pid in papers_by_id and pid not in seen:
+                seen.add(pid)
+                ordered_ids.append(pid)
+
+        project_title = project.title
+        research_question = project.research_question
+        capsules = [
+            {
+                "title": papers_by_id[pid].title,
+                "authors": papers_by_id[pid].authors,
+                "year": papers_by_id[pid].year,
+                "capsule": build_synthesis_capsule(papers_by_id[pid]),
+            }
+            for pid in ordered_ids
+        ]
+    finally:
+        db_session.close()
+
+    def generate():
+        if len(ordered_ids) < 2:
+            yield json.dumps({"error": "Select at least 2 papers to synthesize."}) + "\n"
+            return
+        for event in stream_synthesize_papers(project_title, research_question, capsules):
+            if event.get("done"):
+                write_session = get_session()
+                try:
+                    fresh_project = write_session.query(ResearchProject).get(project_id)
+                    if fresh_project is not None:
+                        set_project_synthesis(write_session, fresh_project, event["text"], ordered_ids)
+                finally:
+                    write_session.close()
+            yield json.dumps(event) + "\n"
+
+    return Response(generate(), mimetype="application/x-ndjson")
 
 
 @papers_bp.route("/projects/<int:project_id>/papers/<int:paper_id>/matrix/edit", methods=["POST"])
