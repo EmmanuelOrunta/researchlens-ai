@@ -102,6 +102,24 @@ def update_project(session, project: ResearchProject, title: str, research_quest
     return project
 
 
+def set_project_synthesis(session, project: ResearchProject, text: str, paper_ids) -> ResearchProject:
+    """
+    Store the AI-generated Paper Synthesis (Sprint 4) on this project - see
+    models/project.py's synthesis_text/synthesis_paper_ids/synthesis_generated_at and
+    services/openai_service.py's stream_synthesize_papers(). paper_ids is the ordered
+    list of Paper ids the text was generated from (routes/papers_routes.py's
+    synthesis_stream() already validates these belong to this project before calling
+    here), stored as a comma-separated string so the page can re-check the same boxes
+    and show which papers the current synthesis is "Based on" after a reload.
+    """
+    project.synthesis_text = text
+    project.synthesis_paper_ids = ",".join(str(paper_id) for paper_id in paper_ids)
+    project.synthesis_generated_at = datetime.utcnow()
+    session.commit()
+    session.refresh(project)
+    return project
+
+
 def delete_project(session, project: ResearchProject):
     """
     Delete a project. This also removes its SavedPaper links (which papers are in its
