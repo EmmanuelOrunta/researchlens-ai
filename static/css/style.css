@@ -287,6 +287,15 @@ a { color: inherit; }
   display: flex;
   flex-direction: column;
   padding: 1.4rem 1rem;
+  /* Stays put as .main-content scrolls past it - pinned to the viewport rather than
+     stretching to the page's full height (which is what made it scroll away on long
+     pages like the Literature Matrix). align-self: flex-start overrides .app-shell's
+     default flex stretch, which would otherwise force this back to content height. */
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  height: 100vh;
+  overflow-y: auto;
 }
 .sidebar-brand {
   display: flex;
@@ -698,7 +707,10 @@ a.project-card-link:hover {
 
 @media (max-width: 720px) {
   .app-shell { flex-direction: column; }
-  .sidebar { width: 100%; }
+  /* Below this width the sidebar stacks above the content instead of sitting beside
+     it, so the sticky/full-height pinning above would just wall off the screen with
+     nav - drop back to a normal block that scrolls away like everything else. */
+  .sidebar { width: 100%; position: static; height: auto; overflow-y: visible; }
   .main-content { padding: 1.5rem; }
 }
 
