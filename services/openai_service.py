@@ -187,6 +187,89 @@ def stream_summarize_paper(title: str, authors: str, year, text: str):
     yield from _stream(system_prompt, user_content)
 
 
+def stream_synthesize_papers(project_title: str, research_question: str, papers: list):
+    """
+    Paper Synthesis (Sprint 4): a single flowing, multi-paragraph narrative across
+    SEVERAL selected papers - summarizing, synthesizing, comparing, and critiquing them
+    together, the way a literature review's own "Synthesis Review" section would (as
+    opposed to the Literature Matrix's row-by-row structured fields, or
+    stream_summarize_paper()'s six fixed paragraphs about one paper alone). Yielded
+    incrementally as it's generated - see _stream() above for the exact event shapes.
+
+    `papers` is a list of dicts, one per paper the user selected, each with "title",
+    "authors", "year", and "capsule" (a compact description of the paper - see
+    services/paper_service.py's build_synthesis_capsule(), which prefers the Literature
+    Matrix's fields when they exist and falls back to the abstract). The route calling
+    this (routes/papers_routes.py's synthesis_stream()) is responsible for requiring at
+    least two papers before calling here - a "synthesis" of one paper isn't meaningful,
+    which is also why this errors below rather than silently degrading to something
+    that reads like a single-paper summary.
+    """
+    if len(papers) < 2:
+        yield {"error": "Select at least 2 papers to synthesize."}
+        return
+
+    system_prompt = (
+        "You are helping a student write the \"Synthesis Review\" section of a "
+        "literature review, drawing on several academic papers they have selected. "
+        "Write a single flowing, cohesive piece of academic prose - between 5 and 8 "
+        "paragraphs, with NO headings, labels, bullet points, numbered lists, or "
+        "markdown formatting anywhere in the output; each paragraph should read as "
+        "plain prose, and the only structure should come from where one paragraph "
+        "ends and the next begins. Separate every paragraph from the next with a "
+        "blank line (i.e. two newline characters), and do not put a blank line "
+        "anywhere except between paragraphs.\n\n"
+        "The papers are listed below, each with its title, authors, and year, plus "
+        "either its methodology/sample/findings/limitations or its abstract. "
+        "Whenever you refer to a specific paper, cite it with a standard academic "
+        "in-text citation built from its own authors/year given below (surname(s) "
+        "and year - e.g. 'Huang (2025)' for one author, 'Smith and Lee (2023)' for "
+        "two, 'Chen et al. (2024)' for three or more; if no year is given for a "
+        "paper, cite it by surname(s) only). Never invent a citation the list below "
+        "doesn't support, and never discuss a paper that isn't in the list.\n\n"
+        "Across the paragraphs, your synthesis should:\n"
+        "1. Open by identifying the overarching trend, theme, or problem that "
+        "connects these papers - the shared question or gap they're all responding "
+        "to.\n"
+        "2. Compare and contrast specific papers directly, citing them by name: "
+        "where do they agree, where do their approaches, methods, or findings "
+        "diverge, and what does each contribute that the others don't?\n"
+        "3. Identify what the papers collectively rely on (shared data types, "
+        "methods, or assumptions) and what challenges or limitations recur across "
+        "more than one of them.\n"
+        "4. Critique the body of work as a whole - what's missing, under-explored, "
+        "or narrow in scope across these papers TOGETHER, as a genuine assessment "
+        "of the collective gap, not a list of each paper's individual flaws "
+        "restated one by one.\n"
+        "5. Close by stating what this body of literature establishes overall, and "
+        "- only if a project title or research question is given below - how it "
+        "relates to or informs that project specifically; otherwise just close on "
+        "the literature's own collective contribution.\n\n"
+        "Base every claim only on the information given below for each paper - "
+        "never invent methodology, findings, or details a paper's entry doesn't "
+        "support. Write in the third person as a neutral academic assessment, never "
+        "in the first person ('I think', 'in my opinion')."
+    )
+
+    context_lines = []
+    if project_title:
+        context_lines.append(f"Project: {project_title}")
+    if research_question:
+        context_lines.append(f"Research question: {research_question}")
+    context_block = ("\n".join(context_lines) + "\n\n") if context_lines else ""
+
+    papers_block = "\n\n".join(
+        f"Paper {i + 1}:\n"
+        f"Title: {paper['title']}\n"
+        f"Authors: {paper['authors'] or 'Not specified'}\n"
+        f"Year: {paper['year'] if paper['year'] else 'Not specified'}\n"
+        f"{paper['capsule']}"
+        for i, paper in enumerate(papers)
+    )
+    user_content = f"{context_block}Papers:\n\n{papers_block}"
+    yield from _stream(system_prompt, user_content)
+
+
 def stream_analyze_relevance(paper_title: str, paper_text: str, research_question: str,
                               research_field: str, keywords: str):
     """
