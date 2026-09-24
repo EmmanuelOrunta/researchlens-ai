@@ -59,6 +59,9 @@ _ADDED_COLUMNS = [
     ("papers", "matrix_findings", "TEXT"),
     ("papers", "matrix_limitations", "TEXT"),
     ("papers", "matrix_generated_at", "DATETIME"),
+    ("research_projects", "synthesis_text", "TEXT"),
+    ("research_projects", "synthesis_paper_ids", "TEXT"),
+    ("research_projects", "synthesis_generated_at", "DATETIME"),
 ]
 
 
