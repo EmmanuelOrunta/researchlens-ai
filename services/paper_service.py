@@ -285,6 +285,35 @@ def set_paper_matrix_fields(
     return paper
 
 
+def build_synthesis_capsule(paper: Paper) -> str:
+    """
+    A compact textual description of one paper for the Paper Synthesis feature
+    (Sprint 4 - see services/openai_service.py's stream_synthesize_papers() and
+    routes/papers_routes.py's synthesis_stream()). Prefers the Literature Matrix's
+    four already-distilled fields (Methodology/Sample/Findings/Limitations), since
+    those exist specifically to make one paper easy to compare against others; falls
+    back to the paper's raw abstract, then a short slice of any extracted PDF text,
+    for a paper the matrix hasn't been generated for yet. Pure function of the
+    paper's own fields - no database session needed.
+    """
+    matrix_parts = []
+    if paper.matrix_methodology:
+        matrix_parts.append(f"Methodology: {paper.matrix_methodology}")
+    if paper.matrix_sample:
+        matrix_parts.append(f"Sample: {paper.matrix_sample}")
+    if paper.matrix_findings:
+        matrix_parts.append(f"Findings: {paper.matrix_findings}")
+    if paper.matrix_limitations:
+        matrix_parts.append(f"Limitations: {paper.matrix_limitations}")
+    if matrix_parts:
+        return "\n".join(matrix_parts)
+    if paper.abstract:
+        return f"Abstract: {paper.abstract}"
+    if paper.extracted_text:
+        return f"Extracted text (excerpt): {paper.extracted_text[:2000]}"
+    return "No abstract, extracted text, or matrix fields available for this paper."
+
+
 def get_saved_paper(session, project_id: int, paper_id: int):
     """
     The SavedPaper link row for one paper in one project - this is where per-project
