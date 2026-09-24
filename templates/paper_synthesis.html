@@ -1,0 +1,80 @@
+{% extends "base_app.html" %}
+{% block title %}Paper Synthesis · {{ project.title }}{% endblock %}
+{% block content %}
+  <a href="{{ url_for('main.project_detail', project_id=project.id) }}" class="back-link">← Back to {{ project.title }}</a>
+
+  <h1 class="page-title">🧬 Paper Synthesis</h1>
+  <p class="page-subtitle">
+    Select two or more papers saved to <strong>{{ project.title }}</strong> and generate a single flowing
+    synthesis - summarizing, comparing, and critiquing them together, the way a literature review's own
+    synthesis section would.
+  </p>
+
+  {% if papers|length < 2 %}
+    <div class="empty-state">
+      <p>Save at least two papers to this project first, then you can synthesize them together.</p>
+      <a href="{{ url_for('papers.search', project_id=project.id) }}" class="btn btn-inline" style="margin-top: 0.8rem;">+ Add Papers</a>
+    </div>
+  {% else %}
+    {% if not openai_configured %}
+      <p class="detail-card-empty" style="margin-bottom: 1rem;">Add a free OPENAI_API_KEY in .env to generate a synthesis - see .env.example.</p>
+    {% endif %}
+
+    <div class="detail-card" style="margin-bottom: 1.5rem;">
+      <div class="detail-card-header">
+        <h2>Papers to include</h2>
+        <label class="synthesis-select-all">
+          <input type="checkbox" data-select-all="synthesis_paper_ids"> Select all
+        </label>
+      </div>
+
+      <div class="synthesis-paper-list">
+        {% for paper in papers %}
+          <label class="synthesis-paper-option">
+            <input type="checkbox" name="synthesis_paper_ids" value="{{ paper.id }}" {% if paper.id in selected_ids %}checked{% endif %}>
+            <span>
+              <span class="synthesis-paper-title">{{ paper.title }}</span>
+              <span class="synthesis-paper-meta">{{ paper.authors or "Unknown authors" }}{% if paper.year %} &middot; {{ paper.year }}{% endif %}</span>
+            </span>
+          </label>
+        {% endfor %}
+      </div>
+
+      {% if openai_configured %}
+        <div class="result-actions" style="margin-top: 1rem;">
+          <button type="button" class="btn btn-inline"
+                  data-stream-url="{{ url_for('papers.synthesis_stream', project_id=project.id) }}"
+                  data-target="synthesis-content" data-paragraphs="true"
+                  data-paper-checkbox-name="synthesis_paper_ids" data-min-papers="2">
+            {{ "Regenerate Synthesis" if project.synthesis_text else "Generate Synthesis" }}
+          </button>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-card-header"><h2>📖 Synthesis Review</h2></div>
+
+      {% if synthesis_papers %}
+        <p class="synthesis-based-on">
+          Based on: {{ synthesis_papers | map(attribute="title") | join(", ") }}
+          {% if project.synthesis_generated_at %} &middot; generated {{ project.synthesis_generated_at.strftime("%b %d, %Y") }}{% endif %}
+        </p>
+      {% endif %}
+
+      <div id="synthesis-content">
+        {% if project.synthesis_text %}
+          {% for paragraph in project.synthesis_text.split("\n\n") %}
+            {% if paragraph.strip() %}
+              <p class="detail-card-body ai-summary-paragraph">{{ paragraph.strip() }}</p>
+            {% endif %}
+          {% endfor %}
+        {% elif not openai_configured %}
+          <p class="detail-card-empty">Add a free OPENAI_API_KEY in .env to generate a synthesis - see .env.example.</p>
+        {% else %}
+          <p class="detail-card-empty">Not generated yet - select at least two papers above and click Generate Synthesis.</p>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}
