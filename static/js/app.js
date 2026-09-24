@@ -87,6 +87,27 @@ document.addEventListener("DOMContentLoaded", function () {
       var target = multiTarget ? null : document.getElementById(button.dataset.target);
       if (!multiTarget && !target) return;
 
+      // Paper Synthesis's "Generate Synthesis" button (paper_synthesis.html) is the
+      // one stream trigger whose input isn't fixed by its URL - which papers to
+      // synthesize is a fresh choice every time, read here from whichever checkboxes
+      // sharing data-paper-checkbox-name's name are currently checked, and sent as the
+      // POST body. Every other [data-stream-url] button omits this attribute, so
+      // requestBody stays null and fetch() below sends no body, same as before.
+      var checkboxName = button.dataset.paperCheckboxName;
+      var requestBody = null;
+      if (checkboxName) {
+        var checkedBoxes = Array.prototype.slice.call(
+          document.querySelectorAll('input[type="checkbox"][name="' + checkboxName + '"]:checked')
+        );
+        var minPapers = Number(button.dataset.minPapers || "0");
+        if (checkedBoxes.length < minPapers) {
+          window.alert("Select at least " + minPapers + " papers first.");
+          return;
+        }
+        requestBody = new URLSearchParams();
+        checkedBoxes.forEach(function (cb) { requestBody.append("paper_ids", cb.value); });
+      }
+
       var usesParagraphs = button.dataset.paragraphs === "true";
       var originalButtonText = button.textContent;
       button.disabled = true;
@@ -169,7 +190,7 @@ document.addEventListener("DOMContentLoaded", function () {
         button.textContent = regenerateLabel;
       }
 
-      fetch(button.dataset.streamUrl, { method: "POST" })
+      fetch(button.dataset.streamUrl, { method: "POST", body: requestBody })
         .then(function (response) {
           if (!response.ok || !response.body) {
             throw new Error("The server didn't respond as expected.");
@@ -329,5 +350,30 @@ document.addEventListener("DOMContentLoaded", function () {
     document.addEventListener("keydown", function (event) {
       if (event.key === "Escape") closeMenu();
     });
+  });
+
+  // Generic "select all" checkbox - e.g. Paper Synthesis's paper picker
+  // (paper_synthesis.html). A checkbox marked data-select-all="<name>" checks/unchecks
+  // every checkbox sharing that name attribute, and reflects their state back (checked
+  // only once every box is) both on load - so it starts right if some boxes are
+  // already pre-checked, e.g. after a page reload - and as individual boxes change.
+  document.querySelectorAll("[data-select-all]").forEach(function (selectAllBox) {
+    var targetName = selectAllBox.dataset.selectAll;
+    var checkboxes = Array.prototype.slice.call(
+      document.querySelectorAll('input[type="checkbox"][name="' + targetName + '"]')
+    );
+    if (checkboxes.length === 0) return;
+
+    function syncSelectAllState() {
+      selectAllBox.checked = checkboxes.every(function (cb) { return cb.checked; });
+    }
+
+    selectAllBox.addEventListener("change", function () {
+      checkboxes.forEach(function (cb) { cb.checked = selectAllBox.checked; });
+    });
+    checkboxes.forEach(function (cb) {
+      cb.addEventListener("change", syncSelectAllState);
+    });
+    syncSelectAllState();
   });
 });
