@@ -17,6 +17,7 @@ from services.project_service import (
     mark_project_viewed,
     update_project,
     delete_project,
+    count_projects_with_synthesis_for_user,
 )
 from services.paper_service import (
     get_saved_papers_for_project,
@@ -46,6 +47,7 @@ def dashboard():
         recent_projects = get_recent_projects_for_user(db_session, user_id, limit=3)
         saved_papers_count = count_saved_papers_for_user(db_session, user_id)
         summarized_count = count_summarized_papers_for_user(db_session, user_id)
+        synthesis_count = count_projects_with_synthesis_for_user(db_session, user_id)
     finally:
         db_session.close()
 
@@ -53,7 +55,7 @@ def dashboard():
         ("Research Projects", project_count, "📁", "stat-violet"),
         ("Saved Papers", saved_papers_count, "📄", "stat-amber"),
         ("Papers Analysed", summarized_count, "🧠", "stat-teal"),
-        ("Potential Gaps Found", 0, "🧭", "stat-rose"),
+        ("Papers Synthesized", synthesis_count, "🧬", "stat-rose"),
     ]
     return render_template("dashboard.html", recent_projects=recent_projects, stats=stats)
 
