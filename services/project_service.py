@@ -102,6 +102,21 @@ def update_project(session, project: ResearchProject, title: str, research_quest
     return project
 
 
+def count_projects_with_synthesis_for_user(session, user_id: int) -> int:
+    """
+    How many of a user's projects currently have a generated Paper Synthesis (Sprint 4)
+    - powers the dashboard's stat card (routes/main_routes.py's dashboard()), which
+    used to be a hardcoded "Potential Gaps Found: 0" placeholder for the still-unbuilt
+    Research Gaps feature, now that Paper Synthesis is a real, working Sprint 4 feature
+    instead.
+    """
+    return (
+        session.query(ResearchProject)
+        .filter(ResearchProject.user_id == user_id, ResearchProject.synthesis_text.isnot(None))
+        .count()
+    )
+
+
 def set_project_synthesis(session, project: ResearchProject, text: str, paper_ids) -> ResearchProject:
     """
     Store the AI-generated Paper Synthesis (Sprint 4) on this project - see
