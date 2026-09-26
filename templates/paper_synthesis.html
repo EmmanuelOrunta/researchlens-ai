@@ -53,7 +53,12 @@
     </div>
 
     <div class="detail-card">
-      <div class="detail-card-header"><h2>📖 Synthesis Review</h2></div>
+      <div class="detail-card-header">
+        <h2>📖 Synthesis Review</h2>
+        {% if project.synthesis_text %}
+          <button type="button" class="btn btn-secondary btn-sm btn-inline" data-copy-target="synthesis-content">📋 Copy</button>
+        {% endif %}
+      </div>
 
       {% if synthesis_papers %}
         <p class="synthesis-based-on">
