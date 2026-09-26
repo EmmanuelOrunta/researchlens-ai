@@ -376,4 +376,53 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     syncSelectAllState();
   });
+
+  // Generic "Copy" button - the AI Summary (paper_detail.html, project_paper_detail.html)
+  // and Paper Synthesis (paper_synthesis.html) each get one of these next to their
+  // Regenerate/Generate button. A button marked data-copy-target="<container id>" copies
+  // that container's rendered text (paragraph breaks and all) to the clipboard, and
+  // briefly relabels itself to confirm it worked - but only if the container actually
+  // holds generated text rather than one of its own "Not generated yet."/"Add an API
+  // key"/etc. placeholder messages, which always render as a bare <p class="detail-
+  // card-empty"> with no sibling - copying those would just put unhelpful boilerplate on
+  // the user's clipboard.
+  document.querySelectorAll("[data-copy-target]").forEach(function (button) {
+    var target = document.getElementById(button.dataset.copyTarget);
+    if (!target) return;
+    var originalLabel = button.textContent;
+
+    function fallbackCopy(text) {
+      var textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      try { document.execCommand("copy"); } catch (copyError) { /* nothing more we can do */ }
+      document.body.removeChild(textarea);
+    }
+
+    function showCopied() {
+      button.textContent = "✓ Copied";
+      setTimeout(function () { button.textContent = originalLabel; }, 1500);
+    }
+
+    button.addEventListener("click", function () {
+      var hasRealContent = !!target.querySelector("p:not(.detail-card-empty)");
+      if (!hasRealContent) return;
+
+      var text = (target.innerText || target.textContent || "").trim();
+      if (!text) return;
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(showCopied, function () {
+          fallbackCopy(text);
+          showCopied();
+        });
+      } else {
+        fallbackCopy(text);
+        showCopied();
+      }
+    });
+  });
 });
