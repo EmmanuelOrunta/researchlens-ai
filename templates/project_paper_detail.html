@@ -48,13 +48,18 @@
   <div class="detail-card" style="margin-bottom: 1.5rem;">
     <div class="detail-card-header">
       <h2>🧠 AI Summary</h2>
-      {% if paper.abstract or paper.extracted_text or paper.open_access_pdf_url %}
-        <button type="button" class="btn btn-secondary btn-sm btn-inline"
-                data-stream-url="{{ url_for('papers.summarize_stream', paper_id=paper.id) }}"
-                data-target="summary-content" data-paragraphs="true">
-          {{ "Regenerate" if paper.summary else "Generate Summary" }}
-        </button>
-      {% endif %}
+      <div class="detail-card-actions">
+        {% if paper.summary %}
+          <button type="button" class="btn btn-secondary btn-sm btn-inline" data-copy-target="summary-content">📋 Copy</button>
+        {% endif %}
+        {% if paper.abstract or paper.extracted_text or paper.open_access_pdf_url %}
+          <button type="button" class="btn btn-secondary btn-sm btn-inline"
+                  data-stream-url="{{ url_for('papers.summarize_stream', paper_id=paper.id) }}"
+                  data-target="summary-content" data-paragraphs="true">
+            {{ "Regenerate" if paper.summary else "Generate Summary" }}
+          </button>
+        {% endif %}
+      </div>
     </div>
     <div id="summary-content">
       {% if paper.summary %}
