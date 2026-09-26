@@ -620,6 +620,11 @@ a.project-card-link:hover {
   margin-bottom: 0.6rem;
 }
 .detail-card-header h2 { font-size: 1rem; font-weight: 700; margin: 0; font-family: var(--font-display); }
+/* Wraps a detail-card-header's action buttons when there's more than one (e.g. AI
+   Summary's Copy + Regenerate) - keeps them grouped together on the header's right
+   side instead of the flex parent's justify-content: space-between spreading them
+   apart from each other as if they were unrelated. */
+.detail-card-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
 .detail-card-body { color: #3A3528; line-height: 1.55; margin: 0; }
 .detail-card-empty { color: var(--color-text-muted); font-size: 0.9rem; margin: 0; font-style: italic; }
 .detail-card-empty.stream-error { color: var(--color-danger, #B3261E); font-style: normal; }
