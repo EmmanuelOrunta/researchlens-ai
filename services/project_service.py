@@ -8,6 +8,7 @@ from datetime import datetime
 
 from models.project import ResearchProject
 from models.saved_paper import SavedPaper
+from models.literature_chat_message import LiteratureChatMessage
 
 
 def create_project(session, user_id: int, title: str, research_question: str,
@@ -138,12 +139,13 @@ def set_project_synthesis(session, project: ResearchProject, text: str, paper_id
 def delete_project(session, project: ResearchProject):
     """
     Delete a project. This also removes its SavedPaper links (which papers are in its
-    library) first, the same way remove_paper_from_project() does for a single paper -
-    otherwise those rows would point at a project_id that no longer exists. The Paper
-    rows themselves are left alone, since the same paper might also be saved to a
-    different project.
+    library) and its Ask the Literature conversation (Sprint 4) first, the same way
+    remove_paper_from_project() does for a single paper - otherwise those rows would
+    point at a project_id that no longer exists. The Paper rows themselves are left
+    alone, since the same paper might also be saved to a different project.
     """
     session.query(SavedPaper).filter(SavedPaper.project_id == project.id).delete()
+    session.query(LiteratureChatMessage).filter(LiteratureChatMessage.project_id == project.id).delete()
     session.delete(project)
     session.commit()
 
@@ -166,5 +168,8 @@ def delete_all_projects_for_user(session, user_id: int):
     if not project_ids:
         return
     session.query(SavedPaper).filter(SavedPaper.project_id.in_(project_ids)).delete(synchronize_session=False)
+    session.query(LiteratureChatMessage).filter(
+        LiteratureChatMessage.project_id.in_(project_ids)
+    ).delete(synchronize_session=False)
     session.query(ResearchProject).filter(ResearchProject.id.in_(project_ids)).delete(synchronize_session=False)
     session.commit()
