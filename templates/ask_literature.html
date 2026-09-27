@@ -1,0 +1,64 @@
+{% extends "base_app.html" %}
+{% block title %}Ask the Literature · {{ project.title }}{% endblock %}
+{% block content %}
+  <a href="{{ url_for('main.project_detail', project_id=project.id) }}" class="back-link">← Back to {{ project.title }}</a>
+
+  <h1 class="page-title">💬 Ask the Literature</h1>
+  <p class="page-subtitle">
+    Ask a question and get an answer grounded in every paper currently saved to <strong>{{ project.title }}</strong>,
+    citing the specific papers it draws on.
+  </p>
+
+  {% if papers|length < 1 %}
+    <div class="empty-state">
+      <p>Save at least one paper to this project first, then you can ask questions about it.</p>
+      <a href="{{ url_for('papers.search', project_id=project.id) }}" class="btn btn-inline" style="margin-top: 0.8rem;">+ Add Papers</a>
+    </div>
+  {% else %}
+    {% if not openai_configured %}
+      <p class="detail-card-empty" style="margin-bottom: 1rem;">Add a free OPENAI_API_KEY in .env to use Ask the Literature - see .env.example.</p>
+    {% endif %}
+
+    <p class="synthesis-based-on">
+      Answering using all {{ papers|length }} paper{{ "s" if papers|length != 1 else "" }} saved to this project:
+      {{ papers | map(attribute="title") | join(", ") }}
+    </p>
+
+    <div class="detail-card">
+      <div class="detail-card-header">
+        <h2>Conversation</h2>
+        {% if messages %}
+          <form method="post" action="{{ url_for('papers.clear_ask_literature', project_id=project.id) }}"
+                class="confirm-delete" data-confirm="Clear this whole conversation? This can't be undone.">
+            <button type="submit" class="btn btn-danger-ghost btn-sm btn-inline">Clear conversation</button>
+          </form>
+        {% endif %}
+      </div>
+
+      <div class="chat-thread" id="chat-thread">
+        {% if not messages %}
+          <p class="detail-card-empty" id="chat-empty-message">Ask your first question below - answers are grounded in this project's saved papers.</p>
+        {% endif %}
+        {% for message in messages %}
+          <div class="chat-message chat-message-{{ message.role }}">
+            <div class="chat-message-role">{{ "You" if message.role == "user" else "🧠 AI" }}</div>
+            <div class="chat-message-body">
+              {% for paragraph in message.content.split("\n\n") %}
+                {% if paragraph.strip() %}<p>{{ paragraph.strip() }}</p>{% endif %}
+              {% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      {% if openai_configured %}
+        <form class="chat-composer" data-chat-form data-stream-url="{{ url_for('papers.ask_literature_stream', project_id=project.id) }}">
+          <div class="field" style="flex: 1; margin-bottom: 0;">
+            <textarea name="question" rows="2" placeholder="Ask a question about these papers…" required maxlength="2000"></textarea>
+          </div>
+          <button type="submit" class="btn btn-inline">Ask</button>
+        </form>
+      {% endif %}
+    </div>
+  {% endif %}
+{% endblock %}
