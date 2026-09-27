@@ -729,6 +729,54 @@ a.project-card-link:hover {
 .note-card-edit-form .field { margin-bottom: 0.5rem; }
 .note-compose { border-style: dashed; }
 
+/* Ask the Literature (Sprint 4) - a running Q&A conversation, scoped to one
+   project, answered using every paper currently saved to it (unlike Paper
+   Synthesis's single generated block of text). Renders as a growing list of
+   question/answer bubbles that new turns are appended to live, as they stream in
+   - see templates/ask_literature.html and static/js/app.js's [data-chat-form]
+   handler. */
+.chat-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  max-height: 520px;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+  padding-right: 0.2rem;
+}
+.chat-message {
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.95rem;
+  border: 1px solid var(--color-border-strong);
+  max-width: 85%;
+}
+.chat-message-user {
+  background: var(--color-primary-soft);
+  border-color: #D9D2FB;
+  align-self: flex-end;
+}
+.chat-message-assistant {
+  background: #FBF9F4;
+  align-self: flex-start;
+}
+.chat-message-role {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.3rem;
+}
+.chat-message-body { color: #3A3528; line-height: 1.55; }
+.chat-message-body p { margin: 0; }
+.chat-message-body p + p { margin-top: 0.7em; }
+.chat-composer {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-end;
+}
+.chat-composer textarea { resize: vertical; min-height: 2.6rem; }
+
 .badge-muted {
   font-size: 0.68rem;
   background: #F4F0E7;
