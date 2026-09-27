@@ -38,6 +38,7 @@ def init_db():
     from models.paper import Paper  # noqa: F401
     from models.saved_paper import SavedPaper  # noqa: F401
     from models.note import Note  # noqa: F401
+    from models.literature_chat_message import LiteratureChatMessage  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
     _apply_lightweight_migrations()
