@@ -57,7 +57,10 @@
              class="nav-item {{ 'active' if request.endpoint in ['papers.paper_synthesis', 'papers.choose_project_for_synthesis'] else '' }}">
             <span class="nav-item-label"><span class="nav-icon">🧬</span> Paper Synthesis</span>
           </a>
-          <span class="nav-item disabled"><span class="nav-item-label"><span class="nav-icon">💬</span> Ask Your Literature</span> <span class="soon-badge">Soon</span></span>
+          <a href="{{ url_for('papers.choose_project_for_ask_literature') }}"
+             class="nav-item {{ 'active' if request.endpoint in ['papers.ask_literature', 'papers.choose_project_for_ask_literature'] else '' }}">
+            <span class="nav-item-label"><span class="nav-icon">💬</span> Ask the Literature</span>
+          </a>
         </div>
 
         <div class="nav-group">
