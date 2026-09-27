@@ -425,4 +425,193 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
   });
+
+  // "Ask the Literature" chat form (ask_literature.html). Unlike the single-target
+  // [data-stream-url] buttons above (AI Summary, Paper Synthesis, etc.), which
+  // replace one fixed container's contents every time, a chat conversation APPENDS
+  // a new pair of bubbles - the question you just asked, and the AI's streaming
+  // answer - to a growing thread each time you ask something, while every earlier
+  // turn stays exactly as it was (the full history the page loaded with, plus
+  // whatever's been asked so far this visit). A form marked data-chat-form carries:
+  //   data-stream-url - the POST endpoint that streams back the same NDJSON shape
+  //                      every [data-stream-url] caller above uses ({"delta": "..."}
+  //                      / {"error": "..."} / {"done": true, "text": "..."}) - see
+  //                      routes/papers_routes.py's ask_literature_stream(). The
+  //                      question itself is read from the form's own textarea and
+  //                      sent as the POST body (question=...) at submit time,
+  //                      rather than being fixed by any data attribute.
+  document.querySelectorAll("[data-chat-form]").forEach(function (form) {
+    var textarea = form.querySelector("textarea");
+    var button = form.querySelector("button[type='submit']");
+    var thread = document.getElementById("chat-thread");
+    if (!textarea || !button || !thread) return;
+
+    function scrollToBottom() {
+      thread.scrollTop = thread.scrollHeight;
+    }
+
+    // Splits text into blank-line-separated paragraphs (same convention every AI
+    // output in this app follows) and renders them into a message bubble's body,
+    // replacing whatever was there before - simpler and safer than patching in a
+    // paragraph break that might arrive split across two separate stream events,
+    // the same tradeoff the [data-stream-url] handler above makes for the same
+    // reason.
+    function renderBodyText(body, text, showCursor) {
+      body.innerHTML = "";
+      var paragraphs = (text || "").split(/\n{2,}/).map(function (s) { return s.trim(); }).filter(Boolean);
+      if (paragraphs.length === 0) paragraphs = [""];
+      paragraphs.forEach(function (paragraphText, i) {
+        var p = document.createElement("p");
+        p.appendChild(document.createTextNode(paragraphText));
+        if (showCursor && i === paragraphs.length - 1) {
+          var cursor = document.createElement("span");
+          cursor.className = "typing-cursor";
+          p.appendChild(cursor);
+        }
+        body.appendChild(p);
+      });
+    }
+
+    // Appends a new bubble (role is "user" or "assistant") to the thread and
+    // returns its body element, so the caller can keep streaming text into it -
+    // also clears the "Ask your first question..." empty-state message the first
+    // time a real turn is added, so it doesn't linger above a non-empty thread.
+    function addBubble(role, text) {
+      var empty = document.getElementById("chat-empty-message");
+      if (empty) empty.remove();
+
+      var bubble = document.createElement("div");
+      bubble.className = "chat-message chat-message-" + role;
+
+      var roleEl = document.createElement("div");
+      roleEl.className = "chat-message-role";
+      roleEl.textContent = role === "user" ? "You" : "🧠 AI";
+      bubble.appendChild(roleEl);
+
+      var body = document.createElement("div");
+      body.className = "chat-message-body";
+      bubble.appendChild(body);
+
+      thread.appendChild(bubble);
+      renderBodyText(body, text, false);
+      scrollToBottom();
+      return body;
+    }
+
+    // Enter submits the question (Shift+Enter still inserts a newline, for a
+    // question that genuinely needs more than one line) - the composer is a
+    // <textarea> rather than a single-line <input> so a long question can still
+    // wrap and be reviewed before sending, but a chat composer's Enter key is
+    // expected to send, not just add a blank line.
+    textarea.addEventListener("keydown", function (event) {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        if (typeof form.requestSubmit === "function") {
+          form.requestSubmit();
+        } else {
+          form.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+        }
+      }
+    });
+
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      var question = textarea.value.trim();
+      if (!question) return;
+
+      addBubble("user", question);
+      textarea.value = "";
+      textarea.disabled = true;
+      button.disabled = true;
+      var originalButtonText = button.textContent;
+      button.textContent = "Asking…";
+
+      var answerBody = addBubble("assistant", "");
+      var fullText = "";
+      var finished = false;
+
+      function finish() {
+        textarea.disabled = false;
+        button.disabled = false;
+        button.textContent = originalButtonText;
+        textarea.focus();
+      }
+
+      function showError(message) {
+        answerBody.innerHTML = "";
+        var p = document.createElement("p");
+        p.className = "detail-card-empty stream-error";
+        p.textContent = message;
+        answerBody.appendChild(p);
+        scrollToBottom();
+      }
+
+      var requestBody = new URLSearchParams();
+      requestBody.append("question", question);
+
+      fetch(form.dataset.streamUrl, { method: "POST", body: requestBody })
+        .then(function (response) {
+          if (!response.ok || !response.body) {
+            throw new Error("The server didn't respond as expected.");
+          }
+
+          var reader = response.body.getReader();
+          var decoder = new TextDecoder();
+          var buffer = "";
+
+          function pump() {
+            return reader.read().then(function (result) {
+              if (result.done) {
+                if (!finished) {
+                  finished = true;
+                  finish();
+                }
+                return;
+              }
+
+              buffer += decoder.decode(result.value, { stream: true });
+              var lines = buffer.split("\n");
+              buffer = lines.pop();
+
+              lines.forEach(function (line) {
+                if (!line.trim()) return;
+                var event;
+                try {
+                  event = JSON.parse(line);
+                } catch (parseError) {
+                  return;
+                }
+
+                if (event.error) {
+                  finished = true;
+                  showError(event.error);
+                  finish();
+                } else if (event.done) {
+                  finished = true;
+                  fullText = event.text || fullText;
+                  renderBodyText(answerBody, fullText, false);
+                  scrollToBottom();
+                  finish();
+                } else if (event.delta) {
+                  fullText += event.delta;
+                  renderBodyText(answerBody, fullText, true);
+                  scrollToBottom();
+                }
+              });
+
+              return pump();
+            });
+          }
+
+          return pump();
+        })
+        .catch(function () {
+          if (!finished) {
+            finished = true;
+            showError("Something went wrong asking this - try again.");
+            finish();
+          }
+        });
+    });
+  });
 });
