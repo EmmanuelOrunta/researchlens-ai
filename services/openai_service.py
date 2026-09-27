@@ -42,14 +42,23 @@ def _client() -> OpenAI:
     return OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 
-def _stream(system_prompt: str, user_content: str):
+def _stream(system_prompt: str, user_content: str, max_input_chars: int = MAX_INPUT_CHARS):
     """
-    Shared plumbing for both features below - the streaming counterpart of what used
+    Shared plumbing for every feature below - the streaming counterpart of what used
     to be a single request/response call. Confirms a key is configured, opens a
     streaming call to the Responses API, and yields plain dicts a route can forward
     live to the browser for a ChatGPT-style "typing" effect (see
     routes/papers_routes.py's summarize_stream() / generate_relevance_stream(), and
     static/js/app.js for how the page consumes this):
+
+    `max_input_chars` defaults to MAX_INPUT_CHARS (right for every single-paper or
+    single-selection call below, where the source text is the biggest, least
+    predictable piece and everything else is short and fixed). stream_ask_literature()
+    passes a larger value instead, because IT already caps its own pieces (papers
+    block, history, question) to fixed budgets before assembling user_content - so
+    truncating here again would only risk cutting into the assembled text this
+    slice never needs to touch (see that function's own comment for why the ORDER
+    of truncation matters there).
 
       - {"delta": "..."} for each incremental chunk of text as OpenAI generates it
       - {"error": "..."} if anything goes wrong, before or during generation - a
@@ -72,7 +81,7 @@ def _stream(system_prompt: str, user_content: str):
             model=MODEL,
             input=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_content[:MAX_INPUT_CHARS]},
+                {"role": "user", "content": user_content[:max_input_chars]},
             ],
         ) as stream:
             for event in stream:
@@ -367,3 +376,100 @@ def stream_extract_matrix_fields(title: str, authors: str, year, text: str):
         f"Abstract/text:\n{text}"
     )
     yield from _stream(system_prompt, user_content)
+
+
+# Ask the Literature (Sprint 4) assembles more pieces into user_content than any
+# call above - every saved paper's capsule, several turns of conversation history,
+# AND the new question - so each piece gets its own smaller character budget,
+# applied BEFORE assembly, rather than leaning on _stream()'s own MAX_INPUT_CHARS
+# truncation the way every function above does. That default truncation keeps the
+# FRONT of user_content and cuts the END, which is exactly backwards for this
+# call: the new question belongs at the very end (so it reads naturally after the
+# conversation history), and if the assembled text ever ran long, a plain end-cut
+# would risk slicing off the question itself rather than some of the (less
+# critical) context around it. Capping each piece up front, then passing a ceiling
+# comfortably larger than their combined worst case (see ASK_LITERATURE_INPUT_CHARS
+# below) to _stream(), means its own slice is just a safety net that in practice
+# never actually triggers.
+MAX_PAPERS_BLOCK_CHARS = 8_000
+MAX_HISTORY_BLOCK_CHARS = 4_000
+MAX_QUESTION_CHARS = 2_000
+ASK_LITERATURE_INPUT_CHARS = MAX_PAPERS_BLOCK_CHARS + MAX_HISTORY_BLOCK_CHARS + MAX_QUESTION_CHARS + 2_000
+
+
+def stream_ask_literature(project_title: str, research_question: str, papers: list,
+                           history: list, question: str):
+    """
+    Ask the Literature (Sprint 4): a running Q&A conversation, scoped to one
+    project, answered using EVERY paper currently saved to it - unlike Paper
+    Synthesis, which lets a user hand-pick a subset (see
+    routes/papers_routes.py's ask_literature_stream()). Yielded incrementally as
+    it's generated - see _stream() above for the exact event shapes.
+
+    `papers` is a list of dicts shaped like stream_synthesize_papers()'s own
+    ("title", "authors", "year", "capsule" - see services/paper_service.py's
+    build_synthesis_capsule()). `history` is the conversation so far, oldest first,
+    as a list of {"role": "user"|"assistant", "content": "..."} dicts (see
+    services/literature_chat_service.py's get_recent_history_for_prompt()) - it
+    does NOT include the new question, which is passed separately as `question` so
+    it can be placed, and guaranteed to survive truncation, at the very end of the
+    prompt (see the character budgets above).
+    """
+    if not papers:
+        yield {"error": "Save at least one paper to this project first, then you can ask questions about it."}
+        return
+    if not (question or "").strip():
+        yield {"error": "Type a question first."}
+        return
+
+    system_prompt = (
+        "You are a research assistant helping a student explore the papers they've "
+        "saved to one research project, by answering their questions using ONLY "
+        "the paper information given below - never outside knowledge, and never a "
+        "paper that isn't listed. Ground every claim in a specific paper, citing it "
+        "with a standard academic in-text citation built from the authors/year "
+        "given for it below (surname(s) and year - e.g. 'Huang (2025)' for one "
+        "author, 'Smith and Lee (2023)' for two, 'Chen et al. (2024)' for three or "
+        "more; if no year is given for a paper, cite it by surname(s) only). Never "
+        "invent a citation, a paper, a finding, or a detail the material below "
+        "doesn't support. If the papers don't contain enough information to answer "
+        "confidently, say so plainly rather than guessing.\n\n"
+        "This may be a follow-up to earlier questions in the same conversation "
+        "(given below, if any) - answer only the NEW question at the end, using "
+        "the earlier exchange purely for context (e.g. resolving 'it' or 'the "
+        "second paper'), never as something to re-answer from scratch.\n\n"
+        "Write 1-4 short paragraphs of plain academic prose - no headings, labels, "
+        "bullet points, numbered lists, or markdown formatting anywhere in the "
+        "output. If you write more than one paragraph, separate each from the next "
+        "with a blank line (i.e. two newline characters), and do not put a blank "
+        "line anywhere else."
+    )
+
+    context_lines = []
+    if project_title:
+        context_lines.append(f"Project: {project_title}")
+    if research_question:
+        context_lines.append(f"Research question: {research_question}")
+    context_block = ("\n".join(context_lines) + "\n\n") if context_lines else ""
+
+    papers_block = "\n\n".join(
+        f"Paper {i + 1}:\n"
+        f"Title: {paper['title']}\n"
+        f"Authors: {paper['authors'] or 'Not specified'}\n"
+        f"Year: {paper['year'] if paper['year'] else 'Not specified'}\n"
+        f"{paper['capsule']}"
+        for i, paper in enumerate(papers)
+    )[:MAX_PAPERS_BLOCK_CHARS]
+
+    history_block = ""
+    if history:
+        history_lines = [
+            f"{'Q' if turn['role'] == 'user' else 'A'}: {turn['content']}"
+            for turn in history
+        ]
+        history_block = ("Conversation so far:\n" + "\n".join(history_lines))[:MAX_HISTORY_BLOCK_CHARS] + "\n\n"
+
+    question_block = f"New question: {(question or '').strip()[:MAX_QUESTION_CHARS]}"
+
+    user_content = f"{context_block}Papers:\n\n{papers_block}\n\n{history_block}{question_block}"
+    yield from _stream(system_prompt, user_content, max_input_chars=ASK_LITERATURE_INPUT_CHARS)
