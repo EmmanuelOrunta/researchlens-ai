@@ -50,8 +50,15 @@ from services.openai_service import (
     stream_analyze_relevance,
     stream_extract_matrix_fields,
     stream_synthesize_papers,
+    stream_ask_literature,
 )
 from services.export_service import build_matrix_excel, build_matrix_pdf, build_matrix_docx, export_filename
+from services.literature_chat_service import (
+    get_chat_messages_for_project,
+    get_recent_history_for_prompt,
+    add_chat_message,
+    clear_chat_history_for_project,
+)
 from models.paper import Paper
 from models.project import ResearchProject
 
@@ -563,6 +570,151 @@ def synthesis_stream(project_id):
             yield json.dumps(event) + "\n"
 
     return Response(generate(), mimetype="application/x-ndjson")
+
+
+@papers_bp.route("/ask-literature")
+def choose_project_for_ask_literature():
+    """
+    Entry point for the sidebar's "Ask the Literature" link - exactly like
+    choose_project_for_synthesis() above, answering questions only makes sense
+    within one project's saved papers, so this skips straight to a lone project's
+    chat, or asks which project otherwise.
+    """
+    redirect_response = _require_login()
+    if redirect_response:
+        return redirect_response
+
+    db_session = get_session()
+    try:
+        projects = get_projects_for_user(db_session, session["user_id"])
+    finally:
+        db_session.close()
+
+    if not projects:
+        flash("Create a research project and save some papers to it first, then you can ask questions about them.", "error")
+        return redirect(url_for("main.new_project"))
+
+    if len(projects) == 1:
+        return redirect(url_for("papers.ask_literature", project_id=projects[0].id))
+
+    return render_template(
+        "choose_project.html", projects=projects,
+        next_endpoint="papers.ask_literature",
+        heading="Which project's papers do you want to ask about?",
+        subtitle="Ask the Literature answers using every paper currently saved to whichever project you pick.",
+    )
+
+
+@papers_bp.route("/projects/<int:project_id>/ask-literature", methods=["GET"])
+def ask_literature(project_id):
+    """
+    Ask the Literature (Sprint 4): a running Q&A chat, scoped to one project, that
+    answers questions using EVERY paper currently saved to it - unlike Paper
+    Synthesis, which lets you hand-pick a subset each time you generate one. See
+    templates/ask_literature.html and services/openai_service.py's
+    stream_ask_literature().
+    """
+    redirect_response = _require_login()
+    if redirect_response:
+        return redirect_response
+
+    db_session = get_session()
+    try:
+        project = _get_owned_project_or_404(db_session, project_id)
+        papers = get_saved_papers_for_project(db_session, project_id)
+        messages = get_chat_messages_for_project(db_session, project_id)
+    finally:
+        db_session.close()
+
+    return render_template(
+        "ask_literature.html", project=project, papers=papers,
+        messages=messages, openai_configured=openai_is_configured(),
+    )
+
+
+@papers_bp.route("/projects/<int:project_id>/ask-literature/stream", methods=["POST"])
+def ask_literature_stream(project_id):
+    """
+    Streams an Ask the Literature answer live, one chunk of text at a time - see
+    summarize_stream() below for the NDJSON event shapes and the two-phase session
+    lifecycle this follows. Unlike synthesis_stream() above, which papers to use
+    isn't a per-generation choice sent from the client - it's always every paper
+    currently saved to the project (see services/openai_service.py's
+    stream_ask_literature() docstring for why) - so the only thing this reads from
+    the request body is the new question itself.
+
+    The user's question is persisted as its own LiteratureChatMessage BEFORE
+    streaming starts, not just once the AI answers the way Paper Synthesis only
+    saves its result once generation finishes - so a question is never lost even if
+    generation fails or the connection drops partway, the same way a message you've
+    sent in a real chat stays visible regardless of what happens next.
+    """
+    redirect_response = _require_login()
+    if redirect_response:
+        return redirect_response
+
+    question = (request.form.get("question") or "").strip()
+
+    db_session = get_session()
+    try:
+        project = _get_owned_project_or_404(db_session, project_id)
+        saved_papers = get_saved_papers_for_project(db_session, project_id)
+
+        if not question:
+            return Response(json.dumps({"error": "Type a question first."}) + "\n", mimetype="application/x-ndjson")
+        if not saved_papers:
+            return Response(
+                json.dumps({"error": "Save at least one paper to this project first, then you can ask questions about it."}) + "\n",
+                mimetype="application/x-ndjson",
+            )
+
+        project_title = project.title
+        research_question = project.research_question
+        capsules = [
+            {
+                "title": paper.title,
+                "authors": paper.authors,
+                "year": paper.year,
+                "capsule": build_synthesis_capsule(paper),
+            }
+            for paper in saved_papers
+        ]
+        history = get_recent_history_for_prompt(db_session, project_id)
+        add_chat_message(db_session, project_id, "user", question)
+    finally:
+        db_session.close()
+
+    def generate():
+        for event in stream_ask_literature(project_title, research_question, capsules, history, question):
+            if event.get("done"):
+                write_session = get_session()
+                try:
+                    add_chat_message(write_session, project_id, "assistant", event["text"])
+                finally:
+                    write_session.close()
+            yield json.dumps(event) + "\n"
+
+    return Response(generate(), mimetype="application/x-ndjson")
+
+
+@papers_bp.route("/projects/<int:project_id>/ask-literature/clear", methods=["POST"])
+def clear_ask_literature(project_id):
+    """Deletes this project's entire Ask the Literature conversation - the "Clear
+    conversation" button's action (templates/ask_literature.html), for starting a
+    fresh thread rather than letting one grow forever."""
+    redirect_response = _require_login()
+    if redirect_response:
+        return redirect_response
+
+    db_session = get_session()
+    try:
+        _get_owned_project_or_404(db_session, project_id)
+        clear_chat_history_for_project(db_session, project_id)
+    finally:
+        db_session.close()
+
+    flash("Conversation cleared.", "success")
+    return redirect(url_for("papers.ask_literature", project_id=project_id))
 
 
 @papers_bp.route("/projects/<int:project_id>/papers/<int:paper_id>/matrix/edit", methods=["POST"])
