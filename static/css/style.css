@@ -759,13 +759,19 @@ a.project-card-link:hover {
   background: #FBF9F4;
   align-self: flex-start;
 }
+.chat-message-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.3rem;
+}
 .chat-message-role {
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--color-text-muted);
-  margin-bottom: 0.3rem;
 }
 .chat-message-body { color: #3A3528; line-height: 1.55; }
 .chat-message-body p { margin: 0; }
@@ -776,6 +782,42 @@ a.project-card-link:hover {
   align-items: flex-end;
 }
 .chat-composer textarea { resize: vertical; min-height: 2.6rem; }
+
+/* "Edit" + "Resend" on a user question (Ask the Literature) - see
+   static/js/app.js's enterEditMode()/submitEdit(). The button only ever shows on
+   a chat-message-user bubble (see templates/ask_literature.html), never an
+   assistant answer. */
+.chat-message-edit-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  flex-shrink: 0;
+}
+.chat-message-edit-btn:hover { color: var(--color-primary-dark); }
+.chat-message-edit-btn:disabled { opacity: 0.5; cursor: default; text-decoration: none; }
+.chat-edit-form { margin-top: 0.5rem; }
+.chat-edit-form textarea {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-strong);
+  font-size: 0.92rem;
+  font-family: inherit;
+  resize: vertical;
+  background: var(--color-surface);
+}
+.chat-edit-form textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+.chat-edit-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
 
 .badge-muted {
   font-size: 0.68rem;
