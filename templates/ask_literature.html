@@ -40,8 +40,13 @@
           <p class="detail-card-empty" id="chat-empty-message">Ask your first question below - answers are grounded in this project's saved papers.</p>
         {% endif %}
         {% for message in messages %}
-          <div class="chat-message chat-message-{{ message.role }}">
-            <div class="chat-message-role">{{ "You" if message.role == "user" else "🧠 AI" }}</div>
+          <div class="chat-message chat-message-{{ message.role }}" data-message-id="{{ message.id }}">
+            <div class="chat-message-header">
+              <div class="chat-message-role">{{ "You" if message.role == "user" else "🧠 AI" }}</div>
+              {% if message.role == "user" %}
+                <button type="button" class="chat-message-edit-btn" data-chat-edit-btn>✏️ Edit</button>
+              {% endif %}
+            </div>
             <div class="chat-message-body">
               {% for paragraph in message.content.split("\n\n") %}
                 {% if paragraph.strip() %}<p>{{ paragraph.strip() }}</p>{% endif %}
