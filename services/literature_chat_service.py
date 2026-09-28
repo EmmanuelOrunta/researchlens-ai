@@ -26,30 +26,48 @@ MAX_HISTORY_MESSAGES_FOR_PROMPT = 8
 
 def get_chat_messages_for_project(session, project_id: int):
     """Every turn of this project's Ask the Literature conversation, oldest first -
-    exactly what the chat page renders as the running thread."""
+    exactly what the chat page renders as the running thread. Ordered by id rather
+    than created_at, the same tie-breaker edit_and_truncate_message() below relies
+    on - the two normally agree, but id is the one guaranteed never to tie between
+    a question and the answer that follows it in the same request."""
     return (
         session.query(LiteratureChatMessage)
         .filter(LiteratureChatMessage.project_id == project_id)
-        .order_by(LiteratureChatMessage.created_at.asc())
+        .order_by(LiteratureChatMessage.id.asc())
         .all()
     )
 
 
-def get_recent_history_for_prompt(session, project_id: int):
+def get_chat_message(session, project_id: int, message_id: int):
+    """One message, scoped to the project it's supposed to belong to - so a
+    message id can't be edited (see edit_and_truncate_message() below) through a
+    URL for a project it doesn't belong to, the same guard models/note.py's
+    get_note() applies to a note id."""
+    return (
+        session.query(LiteratureChatMessage)
+        .filter(LiteratureChatMessage.id == message_id, LiteratureChatMessage.project_id == project_id)
+        .first()
+    )
+
+
+def get_recent_history_for_prompt(session, project_id: int, before_id: int = None):
     """
     The most recent MAX_HISTORY_MESSAGES_FOR_PROMPT messages, oldest-first, as plain
     {"role", "content"} dicts - what routes/papers_routes.py's ask_literature_stream()
     hands to stream_ask_literature() as conversation context BEFORE the new question
     that triggered this call (which is passed to that function separately, since it
     hasn't been saved to the database yet at the point this is read).
+
+    `before_id`, when given, excludes that message and everything after it - what
+    resend_ask_literature_message() uses instead, since an edited question's own
+    "history" is whatever came before the ORIGINAL version of that question, never
+    including it (it's being replaced, not repeated back to the AI as if it were a
+    separate earlier turn).
     """
-    messages = (
-        session.query(LiteratureChatMessage)
-        .filter(LiteratureChatMessage.project_id == project_id)
-        .order_by(LiteratureChatMessage.created_at.desc())
-        .limit(MAX_HISTORY_MESSAGES_FOR_PROMPT)
-        .all()
-    )
+    query = session.query(LiteratureChatMessage).filter(LiteratureChatMessage.project_id == project_id)
+    if before_id is not None:
+        query = query.filter(LiteratureChatMessage.id < before_id)
+    messages = query.order_by(LiteratureChatMessage.id.desc()).limit(MAX_HISTORY_MESSAGES_FOR_PROMPT).all()
     messages.reverse()
     return [{"role": message.role, "content": message.content} for message in messages]
 
@@ -58,6 +76,34 @@ def add_chat_message(session, project_id: int, role: str, content: str) -> Liter
     """Append one turn (role is "user" or "assistant") to a project's conversation."""
     message = LiteratureChatMessage(project_id=project_id, role=role, content=content)
     session.add(message)
+    session.commit()
+    session.refresh(message)
+    return message
+
+
+def edit_and_truncate_message(session, project_id: int, message_id: int, new_content: str) -> LiteratureChatMessage:
+    """
+    Rewrites one of your own earlier questions and discards everything that came
+    after it in the thread (its old answer, and any later questions/answers) - the
+    "Edit" + "Resend" action on a user bubble (templates/ask_literature.html,
+    static/js/app.js's edit-mode handling). This app's conversation is a single
+    linear thread rather than a branching one, so an edited question can't simply
+    be appended - its old answer no longer matches the new question, and anything
+    asked afterwards may have depended on the very answer that's about to change,
+    so the only consistent option is to drop the thread from this point on and let
+    a fresh answer (and, if the user asks again, a fresh continuation) replace it.
+
+    Truncation compares by id rather than created_at: a question and the answer it
+    triggered are written by two different requests a moment apart, so their
+    timestamps are already safely ordered in practice, but id is the one column
+    guaranteed to reflect insertion order with no possible tie.
+    """
+    session.query(LiteratureChatMessage).filter(
+        LiteratureChatMessage.project_id == project_id,
+        LiteratureChatMessage.id > message_id,
+    ).delete()
+    message = session.query(LiteratureChatMessage).get(message_id)
+    message.content = new_content
     session.commit()
     session.refresh(message)
     return message
