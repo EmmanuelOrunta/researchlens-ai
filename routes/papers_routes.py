@@ -55,8 +55,10 @@ from services.openai_service import (
 from services.export_service import build_matrix_excel, build_matrix_pdf, build_matrix_docx, export_filename
 from services.literature_chat_service import (
     get_chat_messages_for_project,
+    get_chat_message,
     get_recent_history_for_prompt,
     add_chat_message,
+    edit_and_truncate_message,
     clear_chat_history_for_project,
 )
 from models.paper import Paper
@@ -648,6 +650,15 @@ def ask_literature_stream(project_id):
     saves its result once generation finishes - so a question is never lost even if
     generation fails or the connection drops partway, the same way a message you've
     sent in a real chat stays visible regardless of what happens next.
+
+    The very first line streamed back is always {"question_id": <id>} - the id the
+    just-persisted question got, before any {"delta"}/{"error"}/{"done"} event.
+    static/js/app.js tags the question's bubble with this id so it can be edited
+    and resent later in the SAME page visit, without needing a reload first (a
+    bubble rendered from the page's own load already carries its id straight from
+    the template - see templates/ask_literature.html). {"done"} similarly carries
+    an "answer_id" alongside its "text", for symmetry, though the AI's own answers
+    aren't editable.
     """
     redirect_response = _require_login()
     if redirect_response:
@@ -680,16 +691,98 @@ def ask_literature_stream(project_id):
             for paper in saved_papers
         ]
         history = get_recent_history_for_prompt(db_session, project_id)
-        add_chat_message(db_session, project_id, "user", question)
+        question_message = add_chat_message(db_session, project_id, "user", question)
+        question_id = question_message.id
     finally:
         db_session.close()
 
     def generate():
+        yield json.dumps({"question_id": question_id}) + "\n"
         for event in stream_ask_literature(project_title, research_question, capsules, history, question):
             if event.get("done"):
                 write_session = get_session()
                 try:
-                    add_chat_message(write_session, project_id, "assistant", event["text"])
+                    answer_message = add_chat_message(write_session, project_id, "assistant", event["text"])
+                    event = dict(event, answer_id=answer_message.id)
+                finally:
+                    write_session.close()
+            yield json.dumps(event) + "\n"
+
+    return Response(generate(), mimetype="application/x-ndjson")
+
+
+@papers_bp.route("/projects/<int:project_id>/ask-literature/messages/<int:message_id>/resend", methods=["POST"])
+def resend_ask_literature_message(project_id, message_id):
+    """
+    Edits one of your own earlier questions in an Ask the Literature conversation
+    and resends it - the "Edit" button on a user bubble (templates/ask_literature.html,
+    static/js/app.js's edit-mode handling). Ask the Literature's conversation is a
+    single linear thread rather than a branching one (see models/literature_chat_
+    message.py), so editing a question can't just append a new turn - its old
+    answer no longer matches the new question, and anything asked afterwards may
+    have leaned on that very answer - so services/literature_chat_service.py's
+    edit_and_truncate_message() drops the thread from this question onward before
+    a fresh answer replaces it, the same "edit and resend" behavior a ChatGPT-style
+    chat gives, and the only one that keeps this thread internally consistent.
+
+    Otherwise this mirrors ask_literature_stream() above almost exactly - same
+    NDJSON event shapes (including the leading {"question_id"} - always this same
+    message_id here, since editing rewrites the row in place rather than creating
+    a new one, but still sent for a uniform contract with a fresh question), same
+    two-phase session lifecycle, same "every paper currently saved to the
+    project" scope. The one difference is `history`: built from
+    get_recent_history_for_prompt(..., before_id=message_id) rather than every
+    message so far, since the conversation "before" an edited question is
+    whatever came before the ORIGINAL version of it, not the (about to be
+    deleted) turns that used to follow it.
+    """
+    redirect_response = _require_login()
+    if redirect_response:
+        return redirect_response
+
+    question = (request.form.get("question") or "").strip()
+
+    db_session = get_session()
+    try:
+        project = _get_owned_project_or_404(db_session, project_id)
+        saved_papers = get_saved_papers_for_project(db_session, project_id)
+        target_message = get_chat_message(db_session, project_id, message_id)
+
+        if target_message is None or target_message.role != "user":
+            abort(404)
+        if not question:
+            return Response(json.dumps({"error": "Type a question first."}) + "\n", mimetype="application/x-ndjson")
+        if not saved_papers:
+            return Response(
+                json.dumps({"error": "Save at least one paper to this project first, then you can ask questions about it."}) + "\n",
+                mimetype="application/x-ndjson",
+            )
+
+        project_title = project.title
+        research_question = project.research_question
+        capsules = [
+            {
+                "title": paper.title,
+                "authors": paper.authors,
+                "year": paper.year,
+                "capsule": build_synthesis_capsule(paper),
+            }
+            for paper in saved_papers
+        ]
+        history = get_recent_history_for_prompt(db_session, project_id, before_id=message_id)
+        edited_message = edit_and_truncate_message(db_session, project_id, message_id, question)
+        question_id = edited_message.id
+    finally:
+        db_session.close()
+
+    def generate():
+        yield json.dumps({"question_id": question_id}) + "\n"
+        for event in stream_ask_literature(project_title, research_question, capsules, history, question):
+            if event.get("done"):
+                write_session = get_session()
+                try:
+                    answer_message = add_chat_message(write_session, project_id, "assistant", event["text"])
+                    event = dict(event, answer_id=answer_message.id)
                 finally:
                     write_session.close()
             yield json.dumps(event) + "\n"
