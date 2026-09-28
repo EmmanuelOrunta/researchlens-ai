@@ -433,13 +433,17 @@ document.addEventListener("DOMContentLoaded", function () {
   // answer - to a growing thread each time you ask something, while every earlier
   // turn stays exactly as it was (the full history the page loaded with, plus
   // whatever's been asked so far this visit). A form marked data-chat-form carries:
-  //   data-stream-url - the POST endpoint that streams back the same NDJSON shape
-  //                      every [data-stream-url] caller above uses ({"delta": "..."}
-  //                      / {"error": "..."} / {"done": true, "text": "..."}) - see
+  //   data-stream-url - the POST endpoint that streams back NDJSON: a leading
+  //                      {"question_id": <id>}, then any number of {"delta": "..."},
+  //                      then exactly one of {"error": "..."} or
+  //                      {"done": true, "text": "...", "answer_id": <id>} - see
   //                      routes/papers_routes.py's ask_literature_stream(). The
   //                      question itself is read from the form's own textarea and
   //                      sent as the POST body (question=...) at submit time,
-  //                      rather than being fixed by any data attribute.
+  //                      rather than being fixed by any data attribute. Editing and
+  //                      resending an earlier question (see further down) POSTs
+  //                      the same event shapes to a sibling "resend" URL derived
+  //                      from this one - see submitEdit() below.
   document.querySelectorAll("[data-chat-form]").forEach(function (form) {
     var textarea = form.querySelector("textarea");
     var button = form.querySelector("button[type='submit']");
@@ -472,8 +476,20 @@ document.addEventListener("DOMContentLoaded", function () {
       });
     }
 
+    // The plain question/answer text a bubble currently shows, reconstructed from
+    // its rendered paragraphs (rejoined with blank lines) - what enterEditMode()
+    // below pre-fills its textarea with, so editing starts from exactly what the
+    // conversation already shows rather than some separately-tracked copy that
+    // could drift from it.
+    function bubbleText(body) {
+      return Array.prototype.slice.call(body.querySelectorAll("p"))
+        .map(function (p) { return p.textContent; })
+        .join("\n\n");
+    }
+
     // Appends a new bubble (role is "user" or "assistant") to the thread and
-    // returns its body element, so the caller can keep streaming text into it -
+    // returns {bubble, body}, so the caller can keep streaming text into the body
+    // and later tag the bubble with its database id (see setMessageId() below) -
     // also clears the "Ask your first question..." empty-state message the first
     // time a real turn is added, so it doesn't linger above a non-empty thread.
     function addBubble(role, text) {
@@ -483,10 +499,13 @@ document.addEventListener("DOMContentLoaded", function () {
       var bubble = document.createElement("div");
       bubble.className = "chat-message chat-message-" + role;
 
+      var header = document.createElement("div");
+      header.className = "chat-message-header";
       var roleEl = document.createElement("div");
       roleEl.className = "chat-message-role";
       roleEl.textContent = role === "user" ? "You" : "🧠 AI";
-      bubble.appendChild(roleEl);
+      header.appendChild(roleEl);
+      bubble.appendChild(header);
 
       var body = document.createElement("div");
       body.className = "chat-message-body";
@@ -495,7 +514,104 @@ document.addEventListener("DOMContentLoaded", function () {
       thread.appendChild(bubble);
       renderBodyText(body, text, false);
       scrollToBottom();
-      return body;
+      return { bubble: bubble, body: body };
+    }
+
+    // Tags a bubble with the database id its message just got (from a
+    // {"question_id"} or {"done", "answer_id"} event), and - for a user bubble -
+    // adds the "✏️ Edit" button this id makes possible. Bubbles rendered by the
+    // template on page load already carry both (see ask_literature.html); this is
+    // only needed for a bubble this page just created client-side, which starts
+    // out with neither, since the id doesn't exist until the server persists it.
+    function setMessageId(bubble, messageId) {
+      bubble.dataset.messageId = messageId;
+      if (bubble.classList.contains("chat-message-user") && !bubble.querySelector("[data-chat-edit-btn]")) {
+        var editBtn = document.createElement("button");
+        editBtn.type = "button";
+        editBtn.className = "chat-message-edit-btn";
+        editBtn.setAttribute("data-chat-edit-btn", "");
+        editBtn.textContent = "✏️ Edit";
+        bubble.querySelector(".chat-message-header").appendChild(editBtn);
+      }
+    }
+
+    // Disables (or re-enables) every "✏️ Edit" button in the thread, alongside the
+    // main composer, while a question or a resend is in flight - editing a second
+    // question mid-stream would race against the first one's own truncation logic
+    // (see edit_and_truncate_message() in services/literature_chat_service.py),
+    // since both would be deleting/appending to the same linear thread at once.
+    function setThreadBusy(busy) {
+      textarea.disabled = busy;
+      button.disabled = busy;
+      thread.querySelectorAll("[data-chat-edit-btn]").forEach(function (btn) { btn.disabled = busy; });
+    }
+
+    // Reads a fetch() Response's body as newline-delimited JSON and forwards each
+    // parsed event to onEvent as it arrives - shared by the main "Ask" submit
+    // handler and the edit-and-resend flow below, since both talk to a server
+    // endpoint streaming the exact same event shapes. onFinish runs exactly once,
+    // whether the stream ended in {"error"}, {"done"}, a dropped connection, or a
+    // fetch() that failed outright.
+    function runChatStream(url, requestBody, onEvent, onFinish) {
+      var finished = false;
+      function finishOnce() {
+        if (finished) return;
+        finished = true;
+        onFinish();
+      }
+
+      fetch(url, { method: "POST", body: requestBody })
+        .then(function (response) {
+          if (!response.ok || !response.body) {
+            throw new Error("The server didn't respond as expected.");
+          }
+
+          var reader = response.body.getReader();
+          var decoder = new TextDecoder();
+          var buffer = "";
+
+          function pump() {
+            return reader.read().then(function (result) {
+              if (result.done) {
+                finishOnce();
+                return;
+              }
+
+              buffer += decoder.decode(result.value, { stream: true });
+              var lines = buffer.split("\n");
+              buffer = lines.pop();
+
+              lines.forEach(function (line) {
+                if (!line.trim()) return;
+                var event;
+                try {
+                  event = JSON.parse(line);
+                } catch (parseError) {
+                  return;
+                }
+                onEvent(event);
+                if (event.error || event.done) finishOnce();
+              });
+
+              return pump();
+            });
+          }
+
+          return pump();
+        })
+        .catch(function () {
+          onEvent({ error: "Something went wrong asking this - try again." });
+          finishOnce();
+        });
+    }
+
+    function showErrorIn(body, message) {
+      body.innerHTML = "";
+      var p = document.createElement("p");
+      p.className = "detail-card-empty stream-error";
+      p.textContent = message;
+      body.appendChild(p);
+      scrollToBottom();
     }
 
     // Enter submits the question (Shift+Enter still inserts a newline, for a
@@ -519,99 +635,174 @@ document.addEventListener("DOMContentLoaded", function () {
       var question = textarea.value.trim();
       if (!question) return;
 
-      addBubble("user", question);
+      var questionBubble = addBubble("user", question);
       textarea.value = "";
-      textarea.disabled = true;
-      button.disabled = true;
+      setThreadBusy(true);
       var originalButtonText = button.textContent;
       button.textContent = "Asking…";
 
-      var answerBody = addBubble("assistant", "");
+      var answer = addBubble("assistant", "");
       var fullText = "";
-      var finished = false;
-
-      function finish() {
-        textarea.disabled = false;
-        button.disabled = false;
-        button.textContent = originalButtonText;
-        textarea.focus();
-      }
-
-      function showError(message) {
-        answerBody.innerHTML = "";
-        var p = document.createElement("p");
-        p.className = "detail-card-empty stream-error";
-        p.textContent = message;
-        answerBody.appendChild(p);
-        scrollToBottom();
-      }
 
       var requestBody = new URLSearchParams();
       requestBody.append("question", question);
 
-      fetch(form.dataset.streamUrl, { method: "POST", body: requestBody })
-        .then(function (response) {
-          if (!response.ok || !response.body) {
-            throw new Error("The server didn't respond as expected.");
+      runChatStream(form.dataset.streamUrl, requestBody, function (chatEvent) {
+        if (chatEvent.question_id) {
+          setMessageId(questionBubble.bubble, chatEvent.question_id);
+        } else if (chatEvent.error) {
+          showErrorIn(answer.body, chatEvent.error);
+        } else if (chatEvent.done) {
+          fullText = chatEvent.text || fullText;
+          renderBodyText(answer.body, fullText, false);
+          scrollToBottom();
+        } else if (chatEvent.delta) {
+          fullText += chatEvent.delta;
+          renderBodyText(answer.body, fullText, true);
+          scrollToBottom();
+        }
+      }, function () {
+        setThreadBusy(false);
+        button.textContent = originalButtonText;
+        textarea.focus();
+      });
+    });
+
+    // --- Edit an earlier question and resend it ---
+    //
+    // Since this conversation is a single linear thread (not a branching one -
+    // see models/literature_chat_message.py), editing a question discards
+    // everything the thread held after it (its old answer, and anything asked
+    // since) before a fresh answer replaces it - the server does the actual
+    // discarding (edit_and_truncate_message()); this only needs to remove the
+    // same bubbles from view and then stream the new answer in, the same way the
+    // compose form above does for a brand new question.
+
+    function enterEditMode(bubble) {
+      if (bubble.querySelector("[data-chat-edit-form]")) return; // already editing
+      var body = bubble.querySelector(".chat-message-body");
+      var editBtn = bubble.querySelector("[data-chat-edit-btn]");
+      body.hidden = true;
+      if (editBtn) editBtn.hidden = true;
+
+      var editForm = document.createElement("form");
+      editForm.className = "chat-edit-form";
+      editForm.setAttribute("data-chat-edit-form", "");
+
+      var editTextarea = document.createElement("textarea");
+      editTextarea.rows = 2;
+      editTextarea.value = bubbleText(body);
+      editForm.appendChild(editTextarea);
+
+      var actions = document.createElement("div");
+      actions.className = "chat-edit-actions";
+
+      var resendBtn = document.createElement("button");
+      resendBtn.type = "submit";
+      resendBtn.className = "btn btn-inline btn-sm";
+      resendBtn.textContent = "Resend";
+      actions.appendChild(resendBtn);
+
+      var cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.className = "btn btn-secondary btn-inline btn-sm";
+      cancelBtn.textContent = "Cancel";
+      cancelBtn.setAttribute("data-chat-edit-cancel", "");
+      actions.appendChild(cancelBtn);
+
+      editForm.appendChild(actions);
+      bubble.appendChild(editForm);
+      editTextarea.focus();
+      editTextarea.selectionStart = editTextarea.selectionEnd = editTextarea.value.length;
+
+      editTextarea.addEventListener("keydown", function (event) {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          if (typeof editForm.requestSubmit === "function") {
+            editForm.requestSubmit();
+          } else {
+            editForm.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
           }
+        } else if (event.key === "Escape") {
+          exitEditMode(bubble);
+        }
+      });
 
-          var reader = response.body.getReader();
-          var decoder = new TextDecoder();
-          var buffer = "";
+      editForm.addEventListener("submit", function (event) {
+        event.preventDefault();
+        submitEdit(bubble, editTextarea.value.trim());
+      });
+    }
 
-          function pump() {
-            return reader.read().then(function (result) {
-              if (result.done) {
-                if (!finished) {
-                  finished = true;
-                  finish();
-                }
-                return;
-              }
+    function exitEditMode(bubble) {
+      var editForm = bubble.querySelector("[data-chat-edit-form]");
+      if (editForm) editForm.remove();
+      var body = bubble.querySelector(".chat-message-body");
+      if (body) body.hidden = false;
+      var editBtn = bubble.querySelector("[data-chat-edit-btn]");
+      if (editBtn) editBtn.hidden = false;
+    }
 
-              buffer += decoder.decode(result.value, { stream: true });
-              var lines = buffer.split("\n");
-              buffer = lines.pop();
+    function submitEdit(bubble, newQuestion) {
+      if (!newQuestion) return;
+      var messageId = bubble.dataset.messageId;
+      if (!messageId) return; // the Edit button only appears once an id is known
 
-              lines.forEach(function (line) {
-                if (!line.trim()) return;
-                var event;
-                try {
-                  event = JSON.parse(line);
-                } catch (parseError) {
-                  return;
-                }
+      // Drop every bubble the server is about to drop too - this question's own
+      // old answer, and anything asked after it.
+      var node = bubble.nextElementSibling;
+      while (node) {
+        var toRemove = node;
+        node = node.nextElementSibling;
+        toRemove.remove();
+      }
 
-                if (event.error) {
-                  finished = true;
-                  showError(event.error);
-                  finish();
-                } else if (event.done) {
-                  finished = true;
-                  fullText = event.text || fullText;
-                  renderBodyText(answerBody, fullText, false);
-                  scrollToBottom();
-                  finish();
-                } else if (event.delta) {
-                  fullText += event.delta;
-                  renderBodyText(answerBody, fullText, true);
-                  scrollToBottom();
-                }
-              });
+      exitEditMode(bubble);
+      var questionBody = bubble.querySelector(".chat-message-body");
+      renderBodyText(questionBody, newQuestion, false);
+      setThreadBusy(true);
+      var originalButtonText = button.textContent;
+      button.textContent = "Resending…";
 
-              return pump();
-            });
-          }
+      var answer = addBubble("assistant", "");
+      var fullText = "";
 
-          return pump();
-        })
-        .catch(function () {
-          if (!finished) {
-            finished = true;
-            showError("Something went wrong asking this - try again.");
-            finish();
-          }
-        });
+      var resendUrl = form.dataset.streamUrl.replace(/\/stream$/, "/messages/" + messageId + "/resend");
+      var requestBody = new URLSearchParams();
+      requestBody.append("question", newQuestion);
+
+      runChatStream(resendUrl, requestBody, function (chatEvent) {
+        if (chatEvent.question_id) {
+          return; // already know this bubble's id - it's being rewritten in place
+        } else if (chatEvent.error) {
+          showErrorIn(answer.body, chatEvent.error);
+        } else if (chatEvent.done) {
+          fullText = chatEvent.text || fullText;
+          renderBodyText(answer.body, fullText, false);
+          scrollToBottom();
+        } else if (chatEvent.delta) {
+          fullText += chatEvent.delta;
+          renderBodyText(answer.body, fullText, true);
+          scrollToBottom();
+        }
+      }, function () {
+        setThreadBusy(false);
+        button.textContent = originalButtonText;
+      });
+    }
+
+    thread.addEventListener("click", function (event) {
+      var editBtn = event.target.closest("[data-chat-edit-btn]");
+      if (editBtn && !editBtn.disabled) {
+        var bubble = editBtn.closest(".chat-message");
+        if (bubble) enterEditMode(bubble);
+        return;
+      }
+      var cancelBtn = event.target.closest("[data-chat-edit-cancel]");
+      if (cancelBtn) {
+        var editingBubble = cancelBtn.closest(".chat-message");
+        if (editingBubble) exitEditMode(editingBubble);
+      }
     });
   });
 });
