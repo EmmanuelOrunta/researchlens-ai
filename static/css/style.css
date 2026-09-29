@@ -732,75 +732,153 @@ a.project-card-link:hover {
 /* Ask the Literature (Sprint 4) - a running Q&A conversation, scoped to one
    project, answered using every paper currently saved to it (unlike Paper
    Synthesis's single generated block of text). Renders as a growing list of
-   question/answer bubbles that new turns are appended to live, as they stream in
+   question/answer turns that new turns are appended to live, as they stream in
    - see templates/ask_literature.html and static/js/app.js's [data-chat-form]
-   handler. */
+   handler. Styled after the familiar ChatGPT/Claude chat layout: a small
+   avatar per turn, a compact bubble for your own questions, and a plain,
+   unboxed answer (so a multi-paragraph AI answer reads like prose, not a
+   cramped card) - with the same hover-reveal icon actions (edit a question,
+   copy an answer) those assistants use instead of always-visible text links. */
 .chat-thread {
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: 1.1rem;
   max-height: 520px;
   overflow-y: auto;
   margin-bottom: 1rem;
   padding-right: 0.2rem;
 }
-.chat-message {
-  border-radius: var(--radius-sm);
-  padding: 0.7rem 0.95rem;
-  border: 1px solid var(--color-border-strong);
-  max-width: 85%;
+.chat-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
 }
-.chat-message-user {
-  background: var(--color-primary-soft);
-  border-color: #D9D2FB;
-  align-self: flex-end;
-}
-.chat-message-assistant {
-  background: #FBF9F4;
-  align-self: flex-start;
-}
-.chat-message-header {
+.chat-row-user { flex-direction: row-reverse; }
+
+.chat-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-  margin-bottom: 0.3rem;
-}
-.chat-message-role {
-  font-size: 0.72rem;
+  justify-content: center;
+  font-size: 0.68rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-text-muted);
+  margin-top: 0.1rem;
 }
-.chat-message-body { color: #3A3528; line-height: 1.55; }
+.chat-avatar-assistant { background: var(--color-ink); color: #fff; font-size: 0.85rem; }
+.chat-avatar-user { background: var(--color-primary-soft); color: var(--color-primary-dark); }
+
+.chat-message { min-width: 0; }
+.chat-message-user {
+  background: var(--color-primary-soft);
+  border-radius: 16px 16px 4px 16px;
+  padding: 0.6rem 0.9rem;
+  max-width: 78%;
+}
+.chat-row-user { justify-content: flex-start; }
+.chat-message-assistant {
+  background: transparent;
+  padding: 0.15rem 0 0;
+  max-width: 100%;
+  flex: 1;
+}
+.chat-message-body {
+  color: var(--color-text);
+  font-size: 0.94rem;
+  line-height: 1.65;
+}
 .chat-message-body p { margin: 0; }
-.chat-message-body p + p { margin-top: 0.7em; }
+.chat-message-body p + p { margin-top: 0.75em; }
+
 .chat-composer {
   display: flex;
-  gap: 0.6rem;
   align-items: flex-end;
+  gap: 0.5rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  padding: 0.45rem 0.5rem 0.45rem 1rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-.chat-composer textarea { resize: vertical; min-height: 2.6rem; }
-
-/* "Edit" + "Resend" on a user question (Ask the Literature) - see
-   static/js/app.js's enterEditMode()/submitEdit(). The button only ever shows on
-   a chat-message-user bubble (see templates/ask_literature.html), never an
-   assistant answer. */
-.chat-message-edit-btn {
-  background: none;
+.chat-composer:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+.chat-composer textarea {
+  flex: 1;
   border: none;
-  padding: 0;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  flex-shrink: 0;
+  padding: 0.5rem 0;
+  resize: none;
+  min-height: 1.5rem;
+  max-height: 9rem;
+  font-size: 0.94rem;
+  font-family: inherit;
+  background: transparent;
+  color: var(--color-text);
 }
-.chat-message-edit-btn:hover { color: var(--color-primary-dark); }
-.chat-message-edit-btn:disabled { opacity: 0.5; cursor: default; text-decoration: none; }
+.chat-composer textarea:focus { outline: none; box-shadow: none; }
+
+.chat-send-btn {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-ink);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.chat-send-btn svg { width: 16px; height: 16px; }
+.chat-send-btn:hover { background: var(--color-ink-hover); }
+.chat-send-btn:disabled { opacity: 0.45; cursor: default; }
+.chat-send-btn.is-busy svg { animation: chat-send-pulse 1s ease-in-out infinite; }
+@keyframes chat-send-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+/* Icon actions under a turn (edit a question, copy an answer) - see
+   static/js/app.js's enterEditMode()/submitEdit() for edit, and the
+   [data-chat-copy-btn] handler for copy. Hidden until the row is hovered or
+   an action inside it has focus, matching ChatGPT/Claude's own hover-reveal
+   affordance instead of an always-visible text link. */
+.chat-message-actions {
+  display: flex;
+  gap: 0.2rem;
+  margin-top: 0.3rem;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.chat-row-user .chat-message-actions { justify-content: flex-end; }
+.chat-row:hover .chat-message-actions,
+.chat-message-actions:focus-within { opacity: 1; }
+/* This rule's own "display: flex" above would otherwise outrank the browser's
+   default [hidden]{display:none} (same specificity, but author styles beat the
+   UA stylesheet) - so enterEditMode()/exitEditMode() setting .hidden on this
+   element would have no visible effect without this override. */
+.chat-message-actions[hidden] { display: none; }
+
+.chat-icon-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+.chat-icon-btn svg { width: 13px; height: 13px; }
+.chat-icon-btn:hover { background: var(--color-border); color: var(--color-ink); }
+.chat-icon-btn:disabled { opacity: 0.4; cursor: default; background: none; }
+.chat-icon-btn.is-copied { color: var(--color-success); }
+
 .chat-edit-form { margin-top: 0.5rem; }
 .chat-edit-form textarea {
   width: 100%;
