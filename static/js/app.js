@@ -444,11 +444,18 @@ document.addEventListener("DOMContentLoaded", function () {
   //                      resending an earlier question (see further down) POSTs
   //                      the same event shapes to a sibling "resend" URL derived
   //                      from this one - see submitEdit() below.
+  // Icon markup for the chat thread's hover-reveal actions (edit a question,
+  // copy an answer) - inline SVG rather than emoji, to match the ChatGPT/
+  // Claude-style icon buttons instead of the app's usual playful emoji glyphs.
+  var CHAT_EDIT_ICON = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var CHAT_COPY_ICON = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M5 15V5a2 2 0 0 1 2-2h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+
   document.querySelectorAll("[data-chat-form]").forEach(function (form) {
     var textarea = form.querySelector("textarea");
     var button = form.querySelector("button[type='submit']");
     var thread = document.getElementById("chat-thread");
     if (!textarea || !button || !thread) return;
+    var userInitials = thread.dataset.userInitials || "";
 
     function scrollToBottom() {
       thread.scrollTop = thread.scrollHeight;
@@ -487,31 +494,50 @@ document.addEventListener("DOMContentLoaded", function () {
         .join("\n\n");
     }
 
-    // Appends a new bubble (role is "user" or "assistant") to the thread and
-    // returns {bubble, body}, so the caller can keep streaming text into the body
-    // and later tag the bubble with its database id (see setMessageId() below) -
-    // also clears the "Ask your first question..." empty-state message the first
-    // time a real turn is added, so it doesn't linger above a non-empty thread.
+    // Appends a new row (avatar + bubble, role is "user" or "assistant") to the
+    // thread and returns {bubble, body}, so the caller can keep streaming text
+    // into the body and later tag the bubble with its database id (see
+    // setMessageId() below) - also clears the "Ask your first question..."
+    // empty-state message the first time a real turn is added, so it doesn't
+    // linger above a non-empty thread. An assistant row gets its "Copy" icon
+    // right away (copying doesn't need a database id); a user row's "Edit" icon
+    // is added later, once setMessageId() knows the id editing needs.
     function addBubble(role, text) {
       var empty = document.getElementById("chat-empty-message");
       if (empty) empty.remove();
 
+      var row = document.createElement("div");
+      row.className = "chat-row chat-row-" + role;
+
+      var avatar = document.createElement("div");
+      avatar.className = "chat-avatar chat-avatar-" + role;
+      avatar.setAttribute("aria-hidden", "true");
+      avatar.textContent = role === "user" ? userInitials : "✦";
+      row.appendChild(avatar);
+
       var bubble = document.createElement("div");
       bubble.className = "chat-message chat-message-" + role;
-
-      var header = document.createElement("div");
-      header.className = "chat-message-header";
-      var roleEl = document.createElement("div");
-      roleEl.className = "chat-message-role";
-      roleEl.textContent = role === "user" ? "You" : "🧠 AI";
-      header.appendChild(roleEl);
-      bubble.appendChild(header);
 
       var body = document.createElement("div");
       body.className = "chat-message-body";
       bubble.appendChild(body);
 
-      thread.appendChild(bubble);
+      var actions = document.createElement("div");
+      actions.className = "chat-message-actions";
+      if (role === "assistant") {
+        var copyBtn = document.createElement("button");
+        copyBtn.type = "button";
+        copyBtn.className = "chat-icon-btn";
+        copyBtn.setAttribute("data-chat-copy-btn", "");
+        copyBtn.setAttribute("aria-label", "Copy answer");
+        copyBtn.title = "Copy";
+        copyBtn.innerHTML = CHAT_COPY_ICON;
+        actions.appendChild(copyBtn);
+      }
+      bubble.appendChild(actions);
+
+      row.appendChild(bubble);
+      thread.appendChild(row);
       renderBodyText(body, text, false);
       scrollToBottom();
       return { bubble: bubble, body: body };
@@ -519,31 +545,56 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Tags a bubble with the database id its message just got (from a
     // {"question_id"} or {"done", "answer_id"} event), and - for a user bubble -
-    // adds the "✏️ Edit" button this id makes possible. Bubbles rendered by the
-    // template on page load already carry both (see ask_literature.html); this is
-    // only needed for a bubble this page just created client-side, which starts
-    // out with neither, since the id doesn't exist until the server persists it.
+    // adds the "Edit" icon button this id makes possible. Bubbles rendered by
+    // the template on page load already carry both (see ask_literature.html);
+    // this is only needed for a bubble this page just created client-side,
+    // which starts out with neither, since the id doesn't exist until the
+    // server persists it.
     function setMessageId(bubble, messageId) {
       bubble.dataset.messageId = messageId;
       if (bubble.classList.contains("chat-message-user") && !bubble.querySelector("[data-chat-edit-btn]")) {
         var editBtn = document.createElement("button");
         editBtn.type = "button";
-        editBtn.className = "chat-message-edit-btn";
+        editBtn.className = "chat-icon-btn";
         editBtn.setAttribute("data-chat-edit-btn", "");
-        editBtn.textContent = "✏️ Edit";
-        bubble.querySelector(".chat-message-header").appendChild(editBtn);
+        editBtn.setAttribute("aria-label", "Edit question");
+        editBtn.title = "Edit";
+        editBtn.innerHTML = CHAT_EDIT_ICON;
+        var actions = bubble.querySelector(".chat-message-actions");
+        if (actions) actions.appendChild(editBtn);
       }
     }
 
-    // Disables (or re-enables) every "✏️ Edit" button in the thread, alongside the
+    // Disables (or re-enables) every "Edit" icon in the thread, alongside the
     // main composer, while a question or a resend is in flight - editing a second
     // question mid-stream would race against the first one's own truncation logic
     // (see edit_and_truncate_message() in services/literature_chat_service.py),
     // since both would be deleting/appending to the same linear thread at once.
+    // The send button also gets a pulsing "busy" look in place of the text-swap
+    // this used to do, since it's icon-only now (see .chat-send-btn.is-busy).
     function setThreadBusy(busy) {
       textarea.disabled = busy;
       button.disabled = busy;
+      button.classList.toggle("is-busy", busy);
+      button.setAttribute("aria-label", busy ? "Asking…" : "Ask a question");
       thread.querySelectorAll("[data-chat-edit-btn]").forEach(function (btn) { btn.disabled = busy; });
+    }
+
+    // Copies a bubble's current plain text to the clipboard and briefly flashes
+    // the button to confirm it worked - see the [data-chat-copy-btn] click
+    // handler further down.
+    function copyBubbleText(copyBtn) {
+      var bodyEl = copyBtn.closest(".chat-message").querySelector(".chat-message-body");
+      var text = bubbleText(bodyEl);
+      if (!navigator.clipboard || !navigator.clipboard.writeText) return;
+      navigator.clipboard.writeText(text).then(function () {
+        copyBtn.classList.add("is-copied");
+        copyBtn.setAttribute("aria-label", "Copied!");
+        setTimeout(function () {
+          copyBtn.classList.remove("is-copied");
+          copyBtn.setAttribute("aria-label", "Copy answer");
+        }, 1500);
+      });
     }
 
     // Reads a fetch() Response's body as newline-delimited JSON and forwards each
@@ -638,8 +689,6 @@ document.addEventListener("DOMContentLoaded", function () {
       var questionBubble = addBubble("user", question);
       textarea.value = "";
       setThreadBusy(true);
-      var originalButtonText = button.textContent;
-      button.textContent = "Asking…";
 
       var answer = addBubble("assistant", "");
       var fullText = "";
@@ -663,7 +712,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       }, function () {
         setThreadBusy(false);
-        button.textContent = originalButtonText;
         textarea.focus();
       });
     });
@@ -681,9 +729,9 @@ document.addEventListener("DOMContentLoaded", function () {
     function enterEditMode(bubble) {
       if (bubble.querySelector("[data-chat-edit-form]")) return; // already editing
       var body = bubble.querySelector(".chat-message-body");
-      var editBtn = bubble.querySelector("[data-chat-edit-btn]");
+      var actions = bubble.querySelector(".chat-message-actions");
       body.hidden = true;
-      if (editBtn) editBtn.hidden = true;
+      if (actions) actions.hidden = true;
 
       var editForm = document.createElement("form");
       editForm.className = "chat-edit-form";
@@ -739,8 +787,8 @@ document.addEventListener("DOMContentLoaded", function () {
       if (editForm) editForm.remove();
       var body = bubble.querySelector(".chat-message-body");
       if (body) body.hidden = false;
-      var editBtn = bubble.querySelector("[data-chat-edit-btn]");
-      if (editBtn) editBtn.hidden = false;
+      var actions = bubble.querySelector(".chat-message-actions");
+      if (actions) actions.hidden = false;
     }
 
     function submitEdit(bubble, newQuestion) {
@@ -748,9 +796,13 @@ document.addEventListener("DOMContentLoaded", function () {
       var messageId = bubble.dataset.messageId;
       if (!messageId) return; // the Edit button only appears once an id is known
 
-      // Drop every bubble the server is about to drop too - this question's own
-      // old answer, and anything asked after it.
-      var node = bubble.nextElementSibling;
+      // Drop every turn the server is about to drop too - this question's own
+      // old answer, and anything asked after it. Each turn is a .chat-row (the
+      // avatar + this .chat-message bubble are siblings within one row, so
+      // bubble.nextElementSibling never reaches the next turn - walk from the
+      // row instead.
+      var row = bubble.closest(".chat-row") || bubble;
+      var node = row.nextElementSibling;
       while (node) {
         var toRemove = node;
         node = node.nextElementSibling;
@@ -761,8 +813,6 @@ document.addEventListener("DOMContentLoaded", function () {
       var questionBody = bubble.querySelector(".chat-message-body");
       renderBodyText(questionBody, newQuestion, false);
       setThreadBusy(true);
-      var originalButtonText = button.textContent;
-      button.textContent = "Resending…";
 
       var answer = addBubble("assistant", "");
       var fullText = "";
@@ -787,7 +837,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       }, function () {
         setThreadBusy(false);
-        button.textContent = originalButtonText;
       });
     }
 
@@ -802,6 +851,11 @@ document.addEventListener("DOMContentLoaded", function () {
       if (cancelBtn) {
         var editingBubble = cancelBtn.closest(".chat-message");
         if (editingBubble) exitEditMode(editingBubble);
+        return;
+      }
+      var copyBtn = event.target.closest("[data-chat-copy-btn]");
+      if (copyBtn) {
+        copyBubbleText(copyBtn);
       }
     });
   });
