@@ -4,6 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}ResearchLens AI{% endblock %}</title>
+  <!-- Sets data-theme on <html> before anything paints, so the page never flashes
+       the wrong theme on load - must run before style.css's [data-theme="dark"]
+       rules would otherwise apply on a stale/no-op default. Kept in sync with the
+       [data-theme-toggle] button's own logic in static/js/app.js, which runs too
+       late (script is loaded at the end of body) to prevent that flash itself. -->
+  <script>
+    (function () {
+      try {
+        document.documentElement.setAttribute(
+          "data-theme",
+          localStorage.getItem("researchlens-theme") === "dark" ? "dark" : "light"
+        );
+      } catch (e) {}
+    })();
+  </script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -83,6 +98,10 @@
             <div class="topbar-user-email">{{ current_user.email }}</div>
           </a>
           <a href="{{ url_for('settings.settings') }}" class="topbar-avatar">{{ current_user.name | initials }}</a>
+          <button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch to dark mode" title="Switch to dark mode">
+            <svg class="theme-toggle-icon-light" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg class="theme-toggle-icon-dark" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.6"/><path d="M12 2.5v2.4M12 19.1v2.4M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.9 19.1l1.7-1.7M17.4 6.6l1.7-1.7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </button>
           <form method="post" action="{{ url_for('auth.logout') }}">
             <button type="submit" class="btn-signout-topbar">Sign out</button>
           </form>
