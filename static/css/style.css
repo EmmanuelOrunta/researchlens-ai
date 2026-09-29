@@ -8,7 +8,17 @@
    paired with Fraunces (a serif with real personality) for headlines and Inter for
    everything else. Four soft pastel tiles carry the dashboard stat cards, each mapped
    to what it means (projects = violet, papers = amber, AI = teal, gaps = rose) so the
-   color itself becomes a wayfinding cue as more features come online. */
+   color itself becomes a wayfinding cue as more features come online.
+
+   Dark mode: every color below is a variable specifically so a second palette can
+   redefine the whole app at once - see the [data-theme="dark"] block further down.
+   The <html> element carries data-theme="light" or "dark" (set as early as possible,
+   inline, in <head> - see templates/base_app.html / base_auth.html - to avoid a
+   flash of the wrong theme on load), toggled and remembered in localStorage by the
+   [data-theme-toggle] button - see static/js/app.js. Anything that still uses a
+   literal color instead of one of these variables won't adapt when the theme
+   switches, so new CSS should reach for a variable (adding one here if nothing
+   existing fits) rather than a hardcoded hex value. */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500;1,9..144,600&display=swap');
 
@@ -18,17 +28,30 @@
   --color-primary-soft: #ECE9FE;
   --color-ink: #18151F;
   --color-ink-hover: #2B2638;
+  --color-on-ink: #FFFFFF;
+  --color-on-ink-chip: rgba(255, 255, 255, 0.15);
   --color-bg: #FAF6EF;
   --color-surface: #FFFFFF;
   --color-sidebar-bg: #FFFFFF;
   --color-text: #221E2C;
+  --color-text-secondary: #3A3528;
+  --color-text-tertiary: #4B4638;
   --color-text-muted: #837C74;
   --color-border: #EEE7DA;
   --color-border-strong: #E2D9C8;
+  --color-hover-tint: #FBF8F2;
+  --color-surface-subtle: #FBF9F4;
+  --color-chip-bg: #F4F0E7;
+  --color-disabled-text: #C7C0B3;
+  --color-badge-link-hover-bg: #E0DAFD;
   --color-danger: #C23B3B;
   --color-danger-bg: #FBEBEA;
+  --color-danger-border: #F0C9C6;
+  --color-danger-border-soft: #F0D4D2;
+  --color-danger-text-strong: #8A3630;
   --color-success: #1F7A5C;
   --color-success-bg: #E9F6EF;
+  --color-success-border: #BFE6D3;
 
   --stat-violet-bg: #ECE8FE; --stat-violet-fg: #5B4CDB;
   --stat-amber-bg: #FDEDD3; --stat-amber-fg: #A8690B;
@@ -45,6 +68,56 @@
   --shadow-card: 0 1px 2px rgba(30, 24, 12, 0.04), 0 8px 24px rgba(30, 24, 12, 0.05);
   --shadow-panel: 0 24px 64px rgba(24, 18, 10, 0.14);
   --shadow-hover: 0 14px 32px rgba(30, 24, 12, 0.09);
+
+  color-scheme: light;
+}
+
+/* Dark palette - same variables, redefined. Kept as one flat block (rather than
+   spread across the file) so the two themes are easy to compare and keep in sync.
+   Near-black pill buttons/avatars (--color-ink) invert to a light chip instead of
+   just going dark, since a "near-black" badge would disappear against a dark page
+   - --color-on-ink is the text color painted on top of it, and flips alongside it. */
+:root[data-theme="dark"] {
+  --color-primary: #9B8AFB;
+  --color-primary-dark: #C3B8FF;
+  --color-primary-soft: #2E2A55;
+  --color-ink: #ECE7DC;
+  --color-ink-hover: #D8D2C0;
+  --color-on-ink: #18151F;
+  --color-on-ink-chip: rgba(24, 21, 31, 0.12);
+  --color-bg: #16141C;
+  --color-surface: #1E1B26;
+  --color-sidebar-bg: #1B1822;
+  --color-text: #EDEAE2;
+  --color-text-secondary: #DAD5C9;
+  --color-text-tertiary: #B7AFA2;
+  --color-text-muted: #948C81;
+  --color-border: #2C2836;
+  --color-border-strong: #3A3547;
+  --color-hover-tint: #262230;
+  --color-surface-subtle: #221F2A;
+  --color-chip-bg: #2A2636;
+  --color-disabled-text: #5C5850;
+  --color-badge-link-hover-bg: #3A335E;
+  --color-danger: #E8918D;
+  --color-danger-bg: #3A2023;
+  --color-danger-border: #5A2E31;
+  --color-danger-border-soft: #4A2629;
+  --color-danger-text-strong: #F0B3AF;
+  --color-success: #6FD3A8;
+  --color-success-bg: #17322A;
+  --color-success-border: #235C46;
+
+  --stat-violet-bg: #2A2554; --stat-violet-fg: #B4A6FF;
+  --stat-amber-bg:  #3A2A14; --stat-amber-fg:  #E8AE5C;
+  --stat-teal-bg:   #123529; --stat-teal-fg:   #5FD9A8;
+  --stat-rose-bg:   #3A1B2A; --stat-rose-fg:   #F093B8;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-panel: 0 24px 64px rgba(0, 0, 0, 0.6);
+  --shadow-hover: 0 14px 32px rgba(0, 0, 0, 0.45);
+
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -55,6 +128,7 @@ body {
   background: var(--color-bg);
   color: var(--color-text);
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 a { color: inherit; }
@@ -119,7 +193,7 @@ a { color: inherit; }
 .toggle-password {
   border: none;
   border-left: 1px solid var(--color-border-strong);
-  background: #FBF8F2;
+  background: var(--color-hover-tint);
   padding: 0 0.9rem;
   font-size: 0.76rem;
   font-weight: 600;
@@ -138,7 +212,7 @@ a { color: inherit; }
   border-radius: var(--radius-pill);
   border: none;
   background: var(--color-ink);
-  color: white !important;
+  color: var(--color-on-ink) !important;
   font-weight: 600;
   font-size: 0.94rem;
   cursor: pointer;
@@ -148,8 +222,8 @@ a { color: inherit; }
 .btn:hover { background: var(--color-ink-hover); box-shadow: var(--shadow-hover); transform: translateY(-1px); }
 .btn-inline { width: auto; }
 .btn-secondary { background: var(--color-surface); color: var(--color-text) !important; border: 1px solid var(--color-border-strong); }
-.btn-secondary:hover { background: #FBF8F2; box-shadow: none; transform: none; }
-.btn-danger-ghost { background: transparent; color: var(--color-danger) !important; border: 1px solid #F0D4D2; }
+.btn-secondary:hover { background: var(--color-hover-tint); box-shadow: none; transform: none; }
+.btn-danger-ghost { background: transparent; color: var(--color-danger) !important; border: 1px solid var(--color-danger-border-soft); }
 .btn-danger-ghost:hover { background: var(--color-danger-bg); box-shadow: none; transform: none; }
 .btn-sm { padding: 0.45rem 0.95rem; font-size: 0.82rem; }
 
@@ -163,8 +237,8 @@ a { color: inherit; }
   font-size: 0.9rem;
   font-weight: 500;
 }
-.flash-error { background: var(--color-danger-bg); color: var(--color-danger); border: 1px solid #F0C9C6; }
-.flash-success { background: var(--color-success-bg); color: var(--color-success); border: 1px solid #BFE6D3; }
+.flash-error { background: var(--color-danger-bg); color: var(--color-danger); border: 1px solid var(--color-danger-border); }
+.flash-success { background: var(--color-success-bg); color: var(--color-success); border: 1px solid var(--color-success-border); }
 
 /* ---------- Auth pages (login / register) ---------- */
 /* Split layout: form panel on the left, a decorative brand panel on the right - built
@@ -197,7 +271,7 @@ a { color: inherit; }
   width: 34px; height: 34px;
   border-radius: 10px;
   background: var(--color-ink);
-  color: white;
+  color: var(--color-on-ink);
   display: flex; align-items: center; justify-content: center;
   font-size: 1rem;
   flex-shrink: 0;
@@ -310,7 +384,7 @@ a { color: inherit; }
   border-radius: var(--radius-sm);
   transition: background 0.15s;
 }
-.sidebar-brand:hover { background: #FBF8F2; }
+.sidebar-brand:hover { background: var(--color-hover-tint); }
 .sidebar-brand-mark {
   width: 32px; height: 32px;
   border-radius: 9px;
@@ -346,19 +420,19 @@ a { color: inherit; }
 .nav-icon {
   width: 26px; height: 26px;
   border-radius: 7px;
-  background: #F4F0E7;
+  background: var(--color-chip-bg);
   display: flex; align-items: center; justify-content: center;
   font-size: 0.86rem;
   flex-shrink: 0;
 }
-a.nav-item:hover { background: #FBF8F2; }
+a.nav-item:hover { background: var(--color-hover-tint); }
 a.nav-item.active { background: var(--color-primary-soft); color: var(--color-primary-dark); font-weight: 600; }
-a.nav-item.active .nav-icon { background: white; }
-.nav-item.disabled { color: #C7C0B3; cursor: default; }
-.nav-item.disabled .nav-icon { background: #F4F0E7; opacity: 0.6; }
+a.nav-item.active .nav-icon { background: var(--color-surface); }
+.nav-item.disabled { color: var(--color-disabled-text); cursor: default; }
+.nav-item.disabled .nav-icon { background: var(--color-chip-bg); opacity: 0.6; }
 .soon-badge {
   font-size: 0.6rem;
-  background: #F4F0E7;
+  background: var(--color-chip-bg);
   color: var(--color-text-muted);
   padding: 0.1rem 0.45rem;
   border-radius: var(--radius-pill);
@@ -382,7 +456,7 @@ a.nav-item.active .nav-icon { background: white; }
   font-family: inherit;
   font-weight: 500;
 }
-.btn-signout:hover { background: #FBF8F2; }
+.btn-signout:hover { background: var(--color-hover-tint); }
 
 .main-content { flex: 1; padding: 2.5rem 3rem; max-width: 1180px; }
 
@@ -402,7 +476,7 @@ a.nav-item.active .nav-icon { background: white; }
   width: 38px; height: 38px;
   border-radius: 50%;
   background: var(--color-ink);
-  color: white;
+  color: var(--color-on-ink);
   display: flex; align-items: center; justify-content: center;
   font-size: 0.8rem;
   font-weight: 700;
@@ -420,7 +494,38 @@ a.nav-item.active .nav-icon { background: white; }
   font-family: inherit;
   font-weight: 600;
 }
-.btn-signout-topbar:hover { background: #FBF8F2; }
+.btn-signout-topbar:hover { background: var(--color-hover-tint); }
+
+/* Light/dark theme toggle - one button, shown in the app topbar
+   (templates/base_app.html) and again (as .theme-toggle-auth, fixed to the
+   corner) on the login/register screens (templates/base_auth.html), since
+   those pages don't share the topbar. Both read/flip the SAME
+   data-theme="light"|"dark" attribute on <html> and the SAME
+   researchlens-theme localStorage key - see static/js/app.js - so a choice
+   made on one carries over to the other. Holds both a sun and a moon icon and
+   shows whichever one represents the mode a click would switch TO (moon while
+   light, sun while dark), which only needs a CSS rule keyed off <html>'s
+   data-theme - no JS required just to pick the icon. */
+.theme-toggle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.theme-toggle:hover { background: var(--color-hover-tint); color: var(--color-text); }
+.theme-toggle svg { width: 17px; height: 17px; }
+.theme-toggle-icon-dark { display: none; }
+:root[data-theme="dark"] .theme-toggle-icon-light { display: none; }
+:root[data-theme="dark"] .theme-toggle-icon-dark { display: block; }
+.theme-toggle-auth { position: fixed; top: 1.75rem; right: 1.75rem; z-index: 5; }
 
 .page-title { font-family: var(--font-display); font-size: 2rem; font-weight: 600; margin: 0 0 0.25rem; }
 .page-subtitle { color: var(--color-text-muted); margin: 0 0 1.75rem; font-size: 1rem; }
@@ -483,11 +588,11 @@ a.nav-item.active .nav-icon { background: white; }
    serious" without looking like a stray error banner. */
 .panel-danger {
   margin-top: 1.25rem;
-  border-color: #F0C9C6;
+  border-color: var(--color-danger-border);
   background: var(--color-danger-bg);
 }
 .panel-danger .panel-title { color: var(--color-danger); }
-.panel-danger p { color: #8A3630; margin: 0 0 1.1rem; font-size: 0.92rem; line-height: 1.5; }
+.panel-danger p { color: var(--color-danger-text-strong); margin: 0 0 1.1rem; font-size: 0.92rem; line-height: 1.5; }
 
 .recent-project-row {
   display: flex;
@@ -507,7 +612,7 @@ a.nav-item.active .nav-icon { background: white; }
   flex-shrink: 0;
   width: 32px; height: 32px;
   border-radius: 50%;
-  background: #F4F0E7;
+  background: var(--color-chip-bg);
   display: flex; align-items: center; justify-content: center;
   font-size: 0.85rem;
   transition: background 0.15s;
@@ -532,9 +637,9 @@ a.nav-item.active .nav-icon { background: white; }
 }
 .quick-action-btn:last-child { margin-bottom: 0; }
 .quick-action-btn:hover { border-color: var(--color-primary); background: var(--color-primary-soft); }
-.quick-action-btn .nav-icon { background: #F4F0E7; }
-.quick-action-btn.primary { background: var(--color-ink); color: white; border-color: var(--color-ink); }
-.quick-action-btn.primary .nav-icon { background: rgba(255,255,255,0.15); }
+.quick-action-btn .nav-icon { background: var(--color-chip-bg); }
+.quick-action-btn.primary { background: var(--color-ink); color: var(--color-on-ink); border-color: var(--color-ink); }
+.quick-action-btn.primary .nav-icon { background: var(--color-on-ink-chip); }
 .quick-action-btn.primary:hover { background: var(--color-ink-hover); }
 
 /* ---------- Project cards (My Projects grid + choose-project page) ---------- */
@@ -554,7 +659,7 @@ a.nav-item.active .nav-icon { background: white; }
   box-shadow: var(--shadow-card);
 }
 .project-title { font-weight: 700; font-size: 1.02rem; font-family: var(--font-display); }
-.project-question { color: #4B4638; margin: 0.35rem 0; font-size: 0.92rem; }
+.project-question { color: var(--color-text-tertiary); margin: 0.35rem 0; font-size: 0.92rem; }
 .project-meta { color: var(--color-text-muted); font-size: 0.82rem; }
 
 a.project-card-link {
@@ -625,7 +730,7 @@ a.project-card-link:hover {
    side instead of the flex parent's justify-content: space-between spreading them
    apart from each other as if they were unrelated. */
 .detail-card-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
-.detail-card-body { color: #3A3528; line-height: 1.55; margin: 0; }
+.detail-card-body { color: var(--color-text-secondary); line-height: 1.55; margin: 0; }
 .detail-card-empty { color: var(--color-text-muted); font-size: 0.9rem; margin: 0; font-style: italic; }
 .detail-card-empty.stream-error { color: var(--color-danger, #B3261E); font-style: normal; }
 
@@ -687,7 +792,7 @@ a.project-card-link:hover {
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   padding: 0.65rem 0.85rem;
-  background: #FBF9F4;
+  background: var(--color-surface-subtle);
   cursor: pointer;
 }
 .synthesis-paper-option input[type="checkbox"] {
@@ -712,7 +817,7 @@ a.project-card-link:hover {
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   padding: 0.85rem 1rem;
-  background: #FBF9F4;
+  background: var(--color-surface-subtle);
 }
 .note-card-header {
   display: flex;
@@ -724,7 +829,7 @@ a.project-card-link:hover {
 .note-card-title { font-weight: 700; font-family: var(--font-display); font-size: 0.95rem; }
 .note-card-meta { font-size: 0.75rem; color: var(--color-text-muted); }
 .note-card-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
-.note-card-body { color: #3A3528; line-height: 1.5; margin: 0; white-space: pre-wrap; }
+.note-card-body { color: var(--color-text-secondary); line-height: 1.5; margin: 0; white-space: pre-wrap; }
 .note-card-edit-form { margin: 0; }
 .note-card-edit-form .field { margin-bottom: 0.5rem; }
 .note-compose { border-style: dashed; }
@@ -767,7 +872,7 @@ a.project-card-link:hover {
   font-weight: 700;
   margin-top: 0.1rem;
 }
-.chat-avatar-assistant { background: var(--color-ink); color: #fff; font-size: 0.85rem; }
+.chat-avatar-assistant { background: var(--color-ink); color: var(--color-on-ink); font-size: 0.85rem; }
 .chat-avatar-user { background: var(--color-primary-soft); color: var(--color-primary-dark); }
 
 .chat-message { min-width: 0; }
@@ -827,7 +932,7 @@ a.project-card-link:hover {
   border-radius: 50%;
   border: none;
   background: var(--color-ink);
-  color: #fff;
+  color: var(--color-on-ink);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -899,7 +1004,7 @@ a.project-card-link:hover {
 
 .badge-muted {
   font-size: 0.68rem;
-  background: #F4F0E7;
+  background: var(--color-chip-bg);
   color: var(--color-text-muted);
   padding: 0.15rem 0.55rem;
   border-radius: var(--radius-pill);
@@ -942,7 +1047,7 @@ a.project-card-link:hover {
   border-radius: var(--radius-pill);
   flex-shrink: 0;
 }
-.badge-link:hover { background: #E0DAFD; }
+.badge-link:hover { background: var(--color-badge-link-hover-bg); }
 
 .paper-list { list-style: none; margin: 0; padding: 0; }
 .paper-list-item { padding: 0.75rem 0; border-bottom: 1px solid var(--color-border); }
@@ -1072,7 +1177,7 @@ a.project-card-link:hover {
   white-space: nowrap;
 }
 .dropdown-item:hover {
-  background: #FBF8F2;
+  background: var(--color-hover-tint);
 }
 .matrix-table-wrap {
   overflow-x: auto;
@@ -1099,7 +1204,7 @@ a.project-card-link:hover {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--color-text-muted);
-  background: #FBF8F2;
+  background: var(--color-hover-tint);
   white-space: nowrap;
 }
 .matrix-table tbody tr:last-child td { border-bottom: none; }
@@ -1113,7 +1218,7 @@ a.project-card-link:hover {
 .matrix-col-actions { width: 160px; }
 .matrix-actions { display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-start; }
 
-.matrix-edit-row td { background: #FBF9F4; }
+.matrix-edit-row td { background: var(--color-surface-subtle); }
 .matrix-edit-form { margin: 0; }
 .matrix-edit-grid {
   display: grid;
@@ -1134,6 +1239,6 @@ a.project-card-link:hover {
 }
 .result-title { font-weight: 700; font-size: 1.02rem; }
 .result-meta { color: var(--color-text-muted); font-size: 0.85rem; margin-top: 0.2rem; }
-.result-abstract { color: #4B4638; margin: 0.6rem 0; line-height: 1.5; font-size: 0.92rem; }
+.result-abstract { color: var(--color-text-tertiary); margin: 0.6rem 0; line-height: 1.5; font-size: 0.92rem; }
 .result-actions { display: flex; gap: 0.6rem; margin-top: 0.8rem; flex-wrap: wrap; }
 .result-actions form { margin: 0; }
