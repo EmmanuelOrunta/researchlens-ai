@@ -35,22 +35,30 @@
         {% endif %}
       </div>
 
-      <div class="chat-thread" id="chat-thread">
+      <div class="chat-thread" id="chat-thread" data-user-initials="{{ current_user.name | initials }}">
         {% if not messages %}
           <p class="detail-card-empty" id="chat-empty-message">Ask your first question below - answers are grounded in this project's saved papers.</p>
         {% endif %}
         {% for message in messages %}
-          <div class="chat-message chat-message-{{ message.role }}" data-message-id="{{ message.id }}">
-            <div class="chat-message-header">
-              <div class="chat-message-role">{{ "You" if message.role == "user" else "🧠 AI" }}</div>
-              {% if message.role == "user" %}
-                <button type="button" class="chat-message-edit-btn" data-chat-edit-btn>✏️ Edit</button>
-              {% endif %}
-            </div>
-            <div class="chat-message-body">
-              {% for paragraph in message.content.split("\n\n") %}
-                {% if paragraph.strip() %}<p>{{ paragraph.strip() }}</p>{% endif %}
-              {% endfor %}
+          <div class="chat-row chat-row-{{ message.role }}">
+            <div class="chat-avatar chat-avatar-{{ message.role }}" aria-hidden="true">{{ (current_user.name | initials) if message.role == "user" else "✦" }}</div>
+            <div class="chat-message chat-message-{{ message.role }}" data-message-id="{{ message.id }}">
+              <div class="chat-message-body">
+                {% for paragraph in message.content.split("\n\n") %}
+                  {% if paragraph.strip() %}<p>{{ paragraph.strip() }}</p>{% endif %}
+                {% endfor %}
+              </div>
+              <div class="chat-message-actions">
+                {% if message.role == "user" %}
+                  <button type="button" class="chat-icon-btn" data-chat-edit-btn aria-label="Edit question" title="Edit">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                {% else %}
+                  <button type="button" class="chat-icon-btn" data-chat-copy-btn aria-label="Copy answer" title="Copy">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M5 15V5a2 2 0 0 1 2-2h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                  </button>
+                {% endif %}
+              </div>
             </div>
           </div>
         {% endfor %}
@@ -58,10 +66,10 @@
 
       {% if openai_configured %}
         <form class="chat-composer" data-chat-form data-stream-url="{{ url_for('papers.ask_literature_stream', project_id=project.id) }}">
-          <div class="field" style="flex: 1; margin-bottom: 0;">
-            <textarea name="question" rows="2" placeholder="Ask a question about these papers…" required maxlength="2000"></textarea>
-          </div>
-          <button type="submit" class="btn btn-inline">Ask</button>
+          <textarea name="question" rows="1" placeholder="Ask a question about these papers…" required maxlength="2000"></textarea>
+          <button type="submit" class="chat-send-btn" aria-label="Ask a question">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 19V5M12 5L5 12M12 5L19 12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
         </form>
       {% endif %}
     </div>
