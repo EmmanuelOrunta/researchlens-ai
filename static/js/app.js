@@ -3,6 +3,43 @@
 // Small bits of interactivity that don't need a server round-trip.
 
 document.addEventListener("DOMContentLoaded", function () {
+  // Light/dark theme toggle - see the [data-theme-toggle] button in
+  // templates/base_app.html (topbar) and templates/base_auth.html (login/
+  // register). The choice is stored under this key, read back by the inline
+  // anti-flash script in each base template's <head> (which runs earlier than
+  // this file loads, so it sets the SAME attribute this code reads/writes -
+  // keep both in sync if this key or its values ever change) so the very next
+  // page load already renders in the right theme instead of flashing light
+  // first. This only needs to flip an attribute and pick an aria-label -
+  // every actual color comes from static/css/style.css's
+  // :root[data-theme="dark"] block reacting to that attribute.
+  var THEME_STORAGE_KEY = "researchlens-theme";
+
+  function currentTheme() {
+    return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+  }
+
+  function describeToggle(btn, theme) {
+    var label = theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
+    btn.setAttribute("aria-label", label);
+    btn.title = label;
+  }
+
+  document.querySelectorAll("[data-theme-toggle]").forEach(function (btn) {
+    describeToggle(btn, currentTheme());
+    btn.addEventListener("click", function () {
+      var next = currentTheme() === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", next);
+      try { localStorage.setItem(THEME_STORAGE_KEY, next); } catch (e) {}
+      // Every toggle on the page (topbar vs. auth corner) reflects the same
+      // shared theme, so all of them need their label updated together, not
+      // just the one that was clicked.
+      document.querySelectorAll("[data-theme-toggle]").forEach(function (otherBtn) {
+        describeToggle(otherBtn, next);
+      });
+    });
+  });
+
   // Password "Show"/"Hide" toggle buttons - each one has data-target="<input id>"
   document.querySelectorAll(".toggle-password").forEach(function (btn) {
     btn.addEventListener("click", function () {
