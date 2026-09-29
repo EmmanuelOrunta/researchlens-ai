@@ -4,9 +4,26 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}ResearchLens AI{% endblock %}</title>
+  <!-- See templates/base_app.html for why this has to be an inline, synchronous
+       script run before the stylesheet paints anything, rather than something
+       static/js/app.js (loaded at the end of body) could do instead. -->
+  <script>
+    (function () {
+      try {
+        document.documentElement.setAttribute(
+          "data-theme",
+          localStorage.getItem("researchlens-theme") === "dark" ? "dark" : "light"
+        );
+      } catch (e) {}
+    })();
+  </script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body class="auth-body">
+  <button type="button" class="theme-toggle theme-toggle-auth" data-theme-toggle aria-label="Switch to dark mode" title="Switch to dark mode">
+    <svg class="theme-toggle-icon-light" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <svg class="theme-toggle-icon-dark" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.6"/><path d="M12 2.5v2.4M12 19.1v2.4M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.9 19.1l1.7-1.7M17.4 6.6l1.7-1.7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  </button>
   <div class="auth-page">
     <div class="auth-form-side">
       <div class="auth-panel">
