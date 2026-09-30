@@ -26,6 +26,14 @@ class LiteratureChatMessage(Base):
     role = Column(String(20), nullable=False)  # "user" or "assistant"
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    # Evidence tracking (Sprint 5): a JSON-encoded list of {"paper_id", "label",
+    # "quote", "verified"} dicts - only ever set on an "assistant" row. Which of
+    # the project's papers this specific answer actually drew from, each with a
+    # verbatim excerpt from that paper's own material and whether it was confirmed
+    # to really appear there. See services/evidence_service.py's
+    # build_multi_paper_evidence() and services/literature_chat_service.py's
+    # add_chat_message().
+    evidence = Column(Text, nullable=True)
 
     def __repr__(self):
         return f"<LiteratureChatMessage id={self.id} project_id={self.project_id} role={self.role!r}>"
