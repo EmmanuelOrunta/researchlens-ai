@@ -1,6 +1,6 @@
 # services/evidence_service.py
 #
-# Evidence tracking (Sprint 5): makes an AI output link back to the SPECIFIC saved
+# Evidence tracking (Sprint 4): makes an AI output link back to the SPECIFIC saved
 # paper(s) - and the specific sentence within them - it actually drew from, instead
 # of the reader having to trust an in-text "Huang (2025)" citation on faith. Three
 # callers use this, each a different shape of the same underlying idea:
