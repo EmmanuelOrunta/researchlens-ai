@@ -45,6 +45,7 @@
           <button type="button" class="btn btn-inline"
                   data-stream-url="{{ url_for('papers.synthesis_stream', project_id=project.id) }}"
                   data-target="synthesis-content" data-paragraphs="true"
+                  data-evidence-target="synthesis-evidence-content"
                   data-paper-checkbox-name="synthesis_paper_ids" data-min-papers="2">
             {{ "Regenerate Synthesis" if project.synthesis_text else "Generate Synthesis" }}
           </button>
@@ -78,6 +79,31 @@
           <p class="detail-card-empty">Add a free OPENAI_API_KEY in .env to generate a synthesis - see .env.example.</p>
         {% else %}
           <p class="detail-card-empty">Not generated yet - select at least two papers above and click Generate Synthesis.</p>
+        {% endif %}
+      </div>
+
+      <div id="synthesis-evidence-content">
+        {% if synthesis_evidence %}
+          <div class="evidence-list" data-evidence-list>
+            {% for item in synthesis_evidence %}
+              <details class="evidence-item {{ 'is-verified' if item.verified else 'is-unverified' }}">
+                <summary>
+                  <span class="evidence-chip-icon" aria-hidden="true">{{ "✓" if item.verified else "?" }}</span>
+                  {{ item.label }}
+                  <span class="evidence-chevron" aria-hidden="true">▸</span>
+                </summary>
+                <blockquote class="evidence-quote">
+                  “{{ item.quote }}”
+                  <div class="evidence-quote-footer">
+                    <span class="evidence-quote-note">{{ "Verified against the saved paper" if item.verified else "Couldn't confirm this exact wording in the saved paper" }}</span>
+                    {% if item.title %}
+                      <a href="{{ url_for('papers.paper_detail', paper_id=item.paper_id) }}" class="evidence-quote-link">View paper →</a>
+                    {% endif %}
+                  </div>
+                </blockquote>
+              </details>
+            {% endfor %}
+          </div>
         {% endif %}
       </div>
     </div>

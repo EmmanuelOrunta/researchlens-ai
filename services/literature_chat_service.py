@@ -12,6 +12,8 @@
 # is inherently a sequence of turns, not a single result to overwrite each time the
 # way ResearchProject.synthesis_text is.
 
+import json
+
 from models.literature_chat_message import LiteratureChatMessage
 
 # How many of the most recent messages (user + assistant combined) get sent back to
@@ -72,13 +74,39 @@ def get_recent_history_for_prompt(session, project_id: int, before_id: int = Non
     return [{"role": message.role, "content": message.content} for message in messages]
 
 
-def add_chat_message(session, project_id: int, role: str, content: str) -> LiteratureChatMessage:
-    """Append one turn (role is "user" or "assistant") to a project's conversation."""
-    message = LiteratureChatMessage(project_id=project_id, role=role, content=content)
+def add_chat_message(session, project_id: int, role: str, content: str, evidence: list = None) -> LiteratureChatMessage:
+    """
+    Append one turn (role is "user" or "assistant") to a project's conversation.
+    `evidence` (Sprint 5 - see services/evidence_service.py's
+    build_multi_paper_evidence()) only ever applies to an "assistant" row - which
+    of the project's papers that answer actually drew from, each with a verbatim
+    quote and whether it verified. Stored JSON-encoded in the evidence column (a
+    Python None stays a database NULL rather than becoming the string "null", so
+    get_message_evidence() below can tell "never generated with evidence" apart
+    from "generated with zero citations").
+    """
+    message = LiteratureChatMessage(
+        project_id=project_id, role=role, content=content,
+        evidence=json.dumps(evidence) if evidence is not None else None,
+    )
     session.add(message)
     session.commit()
     session.refresh(message)
     return message
+
+
+def get_message_evidence(message: LiteratureChatMessage) -> list:
+    """Deserializes one message's evidence column back into the list of
+    {"paper_id", "label", "quote", "verified"} dicts add_chat_message() stored -
+    an empty list for a "user" row, an old row from before this feature existed,
+    or an answer that genuinely cited nothing, so templates can render the same
+    way (no evidence chips) in every one of those cases without special-casing."""
+    if not message.evidence:
+        return []
+    try:
+        return json.loads(message.evidence)
+    except (TypeError, ValueError):
+        return []
 
 
 def edit_and_truncate_message(session, project_id: int, message_id: int, new_content: str) -> LiteratureChatMessage:

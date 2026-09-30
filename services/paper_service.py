@@ -4,6 +4,7 @@
 # which papers are saved to which research project (the "research library" from the
 # project plan).
 
+import json
 import re
 from datetime import datetime
 
@@ -253,14 +254,37 @@ def get_ai_analysis_overview_for_user(session, user_id: int):
 # --- Sprint 3: AI summaries, per-project relevance analysis, and per-project notes ---
 
 
-def set_paper_summary(session, paper: Paper, summary: str) -> Paper:
-    """Store an AI-generated summary on a paper (see services/openai_service.py's
-    summarize_paper()). Shared across every project the paper is saved to."""
+def set_paper_summary(session, paper: Paper, summary: str, evidence: dict = None) -> Paper:
+    """
+    Store an AI-generated summary on a paper (see services/openai_service.py's
+    stream_summarize_paper()). Shared across every project the paper is saved to.
+
+    `evidence` (Sprint 5 - see services/evidence_service.py's
+    build_paragraph_evidence()) is a dict {paragraph_number: {"quote", "verified"}}
+    - a verbatim excerpt from THIS paper's own abstract/extracted_text that grounds
+    each of the summary's six fixed paragraphs. JSON-encoded into summary_evidence,
+    same pattern as literature_chat_service.py's add_chat_message().
+    """
     paper.summary = summary
     paper.summary_generated_at = datetime.utcnow()
+    paper.summary_evidence = json.dumps(evidence) if evidence is not None else None
     session.commit()
     session.refresh(paper)
     return paper
+
+
+def get_summary_evidence(paper: Paper) -> dict:
+    """Deserializes paper.summary_evidence back into the dict set_paper_summary()
+    stored, with integer paragraph-number keys (JSON only has string keys, so this
+    converts them back) - see literature_chat_service.py's get_message_evidence()
+    for why this mirrors that function's exact fallback behavior."""
+    if not paper.summary_evidence:
+        return {}
+    try:
+        raw = json.loads(paper.summary_evidence)
+        return {int(key): value for key, value in raw.items()}
+    except (TypeError, ValueError):
+        return {}
 
 
 def set_paper_matrix_fields(

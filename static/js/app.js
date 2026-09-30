@@ -87,6 +87,84 @@ document.addEventListener("DOMContentLoaded", function () {
     }, 4000);
   });
 
+  // Evidence tracking (Sprint 5): shared by both the [data-stream-url] handler
+  // below (AI Summary, Paper Synthesis) and the Ask the Literature chat handler
+  // further down, since all three features stream the same trailing
+  // "<<<EVIDENCE ... EVIDENCE>>>" marker (see services/evidence_service.py) and
+  // need to (a) never let it flash on screen as raw text while it's still
+  // streaming in, and (b) render the same citation-chip markup once the server
+  // has parsed it out, matching the <details class="evidence-item"> structure
+  // templates/ask_literature.html, paper_synthesis.html, paper_detail.html, and
+  // project_paper_detail.html render server-side, so a page reload afterwards
+  // looks identical to what was just streamed in.
+  var EVIDENCE_MARKER = "<<<EVIDENCE";
+
+  // Cuts fullText off at the marker (or, while it's still arriving delta by
+  // delta, at whatever partial prefix of the marker fullText currently ends
+  // with - e.g. "<<<EVI" - so not even a fragment of it is ever shown mid-typing).
+  function stripEvidenceMarker(text) {
+    var markerIndex = text.indexOf(EVIDENCE_MARKER);
+    if (markerIndex !== -1) return text.slice(0, markerIndex);
+    var maxOverlap = Math.min(EVIDENCE_MARKER.length - 1, text.length);
+    for (var i = maxOverlap; i > 0; i--) {
+      if (text.slice(text.length - i) === EVIDENCE_MARKER.slice(0, i)) {
+        return text.slice(0, text.length - i);
+      }
+    }
+    return text;
+  }
+
+  // One citation: {label, quote, verified, title (optional - only present once
+  // the server has resolved it via evidence_service.attach_paper_titles(), not
+  // in the raw event this freshly-streamed answer carries), paper_id (optional)}.
+  function buildEvidenceItem(item) {
+    var details = document.createElement("details");
+    details.className = "evidence-item " + (item.verified ? "is-verified" : "is-unverified");
+
+    var summary = document.createElement("summary");
+    var icon = document.createElement("span");
+    icon.className = "evidence-chip-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = item.verified ? "✓" : "?";
+    summary.appendChild(icon);
+    summary.appendChild(document.createTextNode(" " + (item.label || "Source") + " "));
+    var chevron = document.createElement("span");
+    chevron.className = "evidence-chevron";
+    chevron.setAttribute("aria-hidden", "true");
+    chevron.textContent = "▸";
+    summary.appendChild(chevron);
+    details.appendChild(summary);
+
+    var quoteEl = document.createElement("blockquote");
+    quoteEl.className = "evidence-quote";
+    quoteEl.appendChild(document.createTextNode("“" + (item.quote || "") + "”"));
+
+    var footer = document.createElement("div");
+    footer.className = "evidence-quote-footer";
+    var note = document.createElement("span");
+    note.className = "evidence-quote-note";
+    note.textContent = item.verified
+      ? "Verified against the saved paper"
+      : "Couldn't confirm this exact wording in the saved paper";
+    footer.appendChild(note);
+    quoteEl.appendChild(footer);
+    details.appendChild(quoteEl);
+
+    return details;
+  }
+
+  // Returns a <div class="evidence-list"> holding one buildEvidenceItem() per
+  // entry, or null for an empty/missing list - callers should skip appending
+  // anything at all in that case, same as the templates' {% if %} guards do.
+  function buildEvidenceList(items) {
+    if (!items || !items.length) return null;
+    var list = document.createElement("div");
+    list.className = "evidence-list";
+    list.setAttribute("data-evidence-list", "");
+    items.forEach(function (item) { list.appendChild(buildEvidenceItem(item)); });
+    return list;
+  }
+
   // Buttons that trigger a live, ChatGPT-style "typing" AI generation (the AI
   // Summary / Relevance Analysis buttons on paper_detail.html and
   // project_paper_detail.html). Each button carries:
@@ -153,6 +231,18 @@ document.addEventListener("DOMContentLoaded", function () {
       var fullText = "";
       var finished = false;
 
+      // Evidence tracking (Sprint 5). data-evidence-paragraphs marks the AI
+      // Summary button: its evidence is a {paragraph_number: {...}} object (JSON
+      // keys are always strings), so each entry attaches right under its own
+      // paragraph as render() rebuilds them. data-evidence-target marks the
+      // Paper Synthesis button instead: its evidence is a flat citation list for
+      // the whole piece, rendered once into a sibling container rather than
+      // per-paragraph. Neither attribute is set for Relevance Analysis or the
+      // Literature Matrix extractor, which don't generate evidence at all.
+      var evidenceParagraphs = button.dataset.evidenceParagraphs === "true";
+      var evidenceTargetId = button.dataset.evidenceTarget;
+      var pendingEvidence = null;
+
       // Rebuilds the target(s)' contents from fullText every time new text arrives,
       // rather than appending in place - simpler and safer than trying to patch in a
       // new paragraph break that might arrive split across two separate stream events
@@ -172,9 +262,15 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       function render(showCursor) {
+        // stripEvidenceMarker() keeps the trailing evidence block (and any
+        // partial fragment of it still arriving) out of what gets shown here -
+        // see the shared helper's own comment above. On the final {"done"}
+        // render, fullText is already the server-cleaned text, so this is a
+        // no-op then.
+        var displayText = stripEvidenceMarker(fullText);
         var paragraphs = (usesParagraphs || multiTarget)
-          ? fullText.split(/\n{2,}/).map(function (s) { return s.trim(); }).filter(Boolean)
-          : [fullText];
+          ? displayText.split(/\n{2,}/).map(function (s) { return s.trim(); }).filter(Boolean)
+          : [displayText];
         if (paragraphs.length === 0) paragraphs = [""];
 
         if (multiTarget) {
@@ -197,6 +293,22 @@ document.addEventListener("DOMContentLoaded", function () {
             p.appendChild(cursor);
           }
           target.appendChild(p);
+
+          // Only once generation has actually finished (pendingEvidence is set
+          // on {"done"}, never mid-stream) - a paragraph's evidence isn't known
+          // until the whole answer, including its trailing marker block, has
+          // arrived and been parsed server-side.
+          if (evidenceParagraphs && !showCursor && pendingEvidence) {
+            var paragraphEvidence = pendingEvidence[String(i + 1)];
+            if (paragraphEvidence) {
+              var evidenceListEl = buildEvidenceList([{
+                label: "Source passage",
+                quote: paragraphEvidence.quote,
+                verified: paragraphEvidence.verified,
+              }]);
+              if (evidenceListEl) target.appendChild(evidenceListEl);
+            }
+          }
         });
       }
 
@@ -271,7 +383,20 @@ document.addEventListener("DOMContentLoaded", function () {
                 } else if (event.done) {
                   finished = true;
                   fullText = event.text || fullText;
+                  pendingEvidence = event.evidence || null;
                   render(false);
+                  // Paper Synthesis's evidence is a flat citation list for the
+                  // whole piece (not per-paragraph), so it goes into its own
+                  // sibling container once, rather than through render()'s
+                  // per-paragraph loop above.
+                  if (evidenceTargetId && !evidenceParagraphs) {
+                    var evidenceTarget = document.getElementById(evidenceTargetId);
+                    if (evidenceTarget) {
+                      evidenceTarget.innerHTML = "";
+                      var evidenceListEl = buildEvidenceList(pendingEvidence);
+                      if (evidenceListEl) evidenceTarget.appendChild(evidenceListEl);
+                    }
+                  }
                   finish(button.dataset.regenerateLabel || "Regenerate");
                 } else if (event.delta) {
                   fullText += event.delta;
@@ -506,7 +631,12 @@ document.addEventListener("DOMContentLoaded", function () {
     // reason.
     function renderBodyText(body, text, showCursor) {
       body.innerHTML = "";
-      var paragraphs = (text || "").split(/\n{2,}/).map(function (s) { return s.trim(); }).filter(Boolean);
+      // stripEvidenceMarker() (shared with the [data-stream-url] handler above)
+      // keeps the trailing evidence block - and any partial fragment of it still
+      // arriving - out of the bubble while an answer is still streaming in. A
+      // user's own question never contains the marker, so this is a no-op there.
+      var displayText = stripEvidenceMarker(text || "");
+      var paragraphs = displayText.split(/\n{2,}/).map(function (s) { return s.trim(); }).filter(Boolean);
       if (paragraphs.length === 0) paragraphs = [""];
       paragraphs.forEach(function (paragraphText, i) {
         var p = document.createElement("p");
@@ -518,6 +648,22 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         body.appendChild(p);
       });
+    }
+
+    // Evidence tracking (Sprint 5): inserts (or replaces) an assistant bubble's
+    // citation list right after its body and before its hover actions, matching
+    // where templates/ask_literature.html renders it server-side. `items` mirrors
+    // the raw {"evidence": [...]} the server sends - no "title" yet (that's only
+    // resolved once the page is reloaded and the route re-attaches it via
+    // evidence_service.attach_paper_titles()), so a freshly-streamed citation
+    // shows its label and quote but not yet a "View paper" link.
+    function renderBubbleEvidence(bubble, items) {
+      var existing = bubble.querySelector("[data-evidence-list]");
+      if (existing) existing.remove();
+      var listEl = buildEvidenceList(items);
+      if (!listEl) return;
+      var actions = bubble.querySelector(".chat-message-actions");
+      bubble.insertBefore(listEl, actions || null);
     }
 
     // The plain question/answer text a bubble currently shows, reconstructed from
@@ -741,6 +887,7 @@ document.addEventListener("DOMContentLoaded", function () {
         } else if (chatEvent.done) {
           fullText = chatEvent.text || fullText;
           renderBodyText(answer.body, fullText, false);
+          renderBubbleEvidence(answer.bubble, chatEvent.evidence);
           scrollToBottom();
         } else if (chatEvent.delta) {
           fullText += chatEvent.delta;
@@ -866,6 +1013,7 @@ document.addEventListener("DOMContentLoaded", function () {
         } else if (chatEvent.done) {
           fullText = chatEvent.text || fullText;
           renderBodyText(answer.body, fullText, false);
+          renderBubbleEvidence(answer.bubble, chatEvent.evidence);
           scrollToBottom();
         } else if (chatEvent.delta) {
           fullText += chatEvent.delta;

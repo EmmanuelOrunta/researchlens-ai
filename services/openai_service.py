@@ -13,6 +13,7 @@
 
 import os
 from openai import OpenAI, OpenAIError
+from services import evidence_service
 
 # OpenAI's cheapest/fastest current model (as of Sept 2026), built for high-volume,
 # latency-sensitive work like this rather than complex reasoning - see
@@ -127,6 +128,38 @@ def _stream(system_prompt: str, user_content: str, max_input_chars: int = MAX_IN
     yield {"done": True, "text": full_text}
 
 
+# --- Evidence tracking (Sprint 5) - see services/evidence_service.py ---
+#
+# Two thin wrappers around _stream() above, one per evidence "shape" (which paper,
+# vs. where in the one paper - see that module's own top-of-file comment). Every
+# {"delta"}/{"error"} event passes through completely unchanged - the trailing
+# evidence block a delta might still be mid-way through arriving is hidden from the
+# LIVE view client-side instead (static/js/app.js's stripEvidenceMarker()), not
+# here, since re-buffering deltas server-side would defeat the point of streaming.
+# Only the terminal {"done"} event needs anything done to it: strip the block out
+# of the text a caller is about to persist/show, and attach whatever evidence
+# parsed out of it under a new "evidence" key.
+
+def _stream_with_multi_paper_evidence(system_prompt: str, user_content: str, papers: list,
+                                       max_input_chars: int = MAX_INPUT_CHARS):
+    for event in _stream(system_prompt, user_content, max_input_chars=max_input_chars):
+        if event.get("done"):
+            clean_text, evidence = evidence_service.build_multi_paper_evidence(event["text"], papers)
+            yield {"done": True, "text": clean_text or event["text"], "evidence": evidence}
+        else:
+            yield event
+
+
+def _stream_with_paragraph_evidence(system_prompt: str, user_content: str, source_text: str,
+                                     max_input_chars: int = MAX_INPUT_CHARS):
+    for event in _stream(system_prompt, user_content, max_input_chars=max_input_chars):
+        if event.get("done"):
+            clean_text, evidence = evidence_service.build_paragraph_evidence(event["text"], source_text)
+            yield {"done": True, "text": clean_text or event["text"], "evidence": evidence}
+        else:
+            yield event
+
+
 def stream_summarize_paper(title: str, authors: str, year, text: str):
     """
     Summarize a paper's abstract (or extracted PDF text, for an upload) into a full,
@@ -184,6 +217,7 @@ def stream_summarize_paper(title: str, authors: str, year, text: str):
         "the six paragraphs above with real substance, keep that paragraph short and "
         "factual rather than filling the gap with invented specifics - but still "
         "produce exactly six paragraphs, separated by blank lines, every time."
+        + evidence_service.SINGLE_EVIDENCE_INSTRUCTION
     )
     authors_line = authors or "Not specified"
     year_line = year if year else "Not specified"
@@ -193,7 +227,7 @@ def stream_summarize_paper(title: str, authors: str, year, text: str):
         f"Year: {year_line}\n\n"
         f"Abstract/text:\n{text}"
     )
-    yield from _stream(system_prompt, user_content)
+    yield from _stream_with_paragraph_evidence(system_prompt, user_content, text)
 
 
 def stream_synthesize_papers(project_title: str, research_question: str, papers: list):
@@ -258,6 +292,7 @@ def stream_synthesize_papers(project_title: str, research_question: str, papers:
         "never invent methodology, findings, or details a paper's entry doesn't "
         "support. Write in the third person as a neutral academic assessment, never "
         "in the first person ('I think', 'in my opinion')."
+        + evidence_service.MULTI_EVIDENCE_INSTRUCTION
     )
 
     context_lines = []
@@ -276,7 +311,7 @@ def stream_synthesize_papers(project_title: str, research_question: str, papers:
         for i, paper in enumerate(papers)
     )
     user_content = f"{context_block}Papers:\n\n{papers_block}"
-    yield from _stream(system_prompt, user_content)
+    yield from _stream_with_multi_paper_evidence(system_prompt, user_content, papers)
 
 
 def stream_analyze_relevance(paper_title: str, paper_text: str, research_question: str,
@@ -443,6 +478,7 @@ def stream_ask_literature(project_title: str, research_question: str, papers: li
         "output. If you write more than one paragraph, separate each from the next "
         "with a blank line (i.e. two newline characters), and do not put a blank "
         "line anywhere else."
+        + evidence_service.MULTI_EVIDENCE_INSTRUCTION
     )
 
     context_lines = []
@@ -472,4 +508,6 @@ def stream_ask_literature(project_title: str, research_question: str, papers: li
     question_block = f"New question: {(question or '').strip()[:MAX_QUESTION_CHARS]}"
 
     user_content = f"{context_block}Papers:\n\n{papers_block}\n\n{history_block}{question_block}"
-    yield from _stream(system_prompt, user_content, max_input_chars=ASK_LITERATURE_INPUT_CHARS)
+    yield from _stream_with_multi_paper_evidence(
+        system_prompt, user_content, papers, max_input_chars=ASK_LITERATURE_INPUT_CHARS
+    )

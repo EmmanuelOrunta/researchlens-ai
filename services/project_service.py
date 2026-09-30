@@ -4,6 +4,7 @@
 # tracking which ones were opened most recently for the dashboard's "Recently viewed"
 # section.
 
+import json
 from datetime import datetime
 
 from models.project import ResearchProject
@@ -118,7 +119,7 @@ def count_projects_with_synthesis_for_user(session, user_id: int) -> int:
     )
 
 
-def set_project_synthesis(session, project: ResearchProject, text: str, paper_ids) -> ResearchProject:
+def set_project_synthesis(session, project: ResearchProject, text: str, paper_ids, evidence: list = None) -> ResearchProject:
     """
     Store the AI-generated Paper Synthesis (Sprint 4) on this project - see
     models/project.py's synthesis_text/synthesis_paper_ids/synthesis_generated_at and
@@ -127,13 +128,33 @@ def set_project_synthesis(session, project: ResearchProject, text: str, paper_id
     synthesis_stream() already validates these belong to this project before calling
     here), stored as a comma-separated string so the page can re-check the same boxes
     and show which papers the current synthesis is "Based on" after a reload.
+
+    `evidence` (Sprint 5 - see services/evidence_service.py's
+    build_multi_paper_evidence()) is the SUBSET of paper_ids the synthesis text
+    actually drew from, each with a verbatim quote and whether it verified -
+    distinct from paper_ids itself, which is just what was offered/selected.
+    JSON-encoded into synthesis_evidence, the same pattern as literature_chat_
+    service.py's add_chat_message().
     """
     project.synthesis_text = text
     project.synthesis_paper_ids = ",".join(str(paper_id) for paper_id in paper_ids)
+    project.synthesis_evidence = json.dumps(evidence) if evidence is not None else None
     project.synthesis_generated_at = datetime.utcnow()
     session.commit()
     session.refresh(project)
     return project
+
+
+def get_synthesis_evidence(project: ResearchProject) -> list:
+    """Deserializes project.synthesis_evidence back into the list set_project_
+    synthesis() stored - see literature_chat_service.py's get_message_evidence()
+    for why this mirrors that function's exact fallback behavior."""
+    if not project.synthesis_evidence:
+        return []
+    try:
+        return json.loads(project.synthesis_evidence)
+    except (TypeError, ValueError):
+        return []
 
 
 def delete_project(session, project: ResearchProject):

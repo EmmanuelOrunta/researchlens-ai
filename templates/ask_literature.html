@@ -48,6 +48,28 @@
                   {% if paragraph.strip() %}<p>{{ paragraph.strip() }}</p>{% endif %}
                 {% endfor %}
               </div>
+              {% if message.role == "assistant" and message.evidence_list %}
+                <div class="evidence-list" data-evidence-list>
+                  {% for item in message.evidence_list %}
+                    <details class="evidence-item {{ 'is-verified' if item.verified else 'is-unverified' }}">
+                      <summary>
+                        <span class="evidence-chip-icon" aria-hidden="true">{{ "✓" if item.verified else "?" }}</span>
+                        {{ item.label }}
+                        <span class="evidence-chevron" aria-hidden="true">▸</span>
+                      </summary>
+                      <blockquote class="evidence-quote">
+                        “{{ item.quote }}”
+                        <div class="evidence-quote-footer">
+                          <span class="evidence-quote-note">{{ "Verified against the saved paper" if item.verified else "Couldn't confirm this exact wording in the saved paper" }}</span>
+                          {% if item.title %}
+                            <a href="{{ url_for('papers.paper_detail', paper_id=item.paper_id) }}" class="evidence-quote-link">View paper →</a>
+                          {% endif %}
+                        </div>
+                      </blockquote>
+                    </details>
+                  {% endfor %}
+                </div>
+              {% endif %}
               <div class="chat-message-actions">
                 {% if message.role == "user" %}
                   <button type="button" class="chat-icon-btn" data-chat-edit-btn aria-label="Edit question" title="Edit">

@@ -38,6 +38,14 @@ class ResearchProject(Base):
     # project (there's only ever one "current" synthesis, not a history of them).
     synthesis_paper_ids = Column(Text, nullable=True)
     synthesis_generated_at = Column(DateTime, nullable=True)
+    # Evidence tracking (Sprint 5): a JSON-encoded list of {"paper_id", "label",
+    # "quote", "verified"} dicts - which of synthesis_paper_ids the synthesis text
+    # ACTUALLY drew from (a subset - a paper can be selected but barely used), each
+    # with a verbatim excerpt from that paper's own material and whether it was
+    # confirmed to really appear there. See services/evidence_service.py's
+    # build_multi_paper_evidence() and services/project_service.py's
+    # set_project_synthesis().
+    synthesis_evidence = Column(Text, nullable=True)
 
     def __repr__(self):
         return f"<ResearchProject id={self.id} title={self.title!r}>"

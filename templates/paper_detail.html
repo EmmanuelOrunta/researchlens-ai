@@ -52,7 +52,7 @@
         {% if paper.abstract or paper.extracted_text or paper.open_access_pdf_url %}
           <button type="button" class="btn btn-secondary btn-sm btn-inline"
                   data-stream-url="{{ url_for('papers.summarize_stream', paper_id=paper.id) }}"
-                  data-target="summary-content" data-paragraphs="true">
+                  data-target="summary-content" data-paragraphs="true" data-evidence-paragraphs="true">
             {{ "Regenerate" if paper.summary else "Generate Summary" }}
           </button>
         {% endif %}
@@ -63,6 +63,24 @@
         {% for paragraph in paper.summary.split("\n\n") %}
           {% if paragraph.strip() %}
             <p class="detail-card-body ai-summary-paragraph">{{ paragraph.strip() }}</p>
+            {% set evidence_item = paper.summary_evidence_dict.get(loop.index) if paper.summary_evidence_dict else None %}
+            {% if evidence_item %}
+              <div class="evidence-list" data-evidence-list>
+                <details class="evidence-item {{ 'is-verified' if evidence_item.verified else 'is-unverified' }}">
+                  <summary>
+                    <span class="evidence-chip-icon" aria-hidden="true">{{ "✓" if evidence_item.verified else "?" }}</span>
+                    Source passage
+                    <span class="evidence-chevron" aria-hidden="true">▸</span>
+                  </summary>
+                  <blockquote class="evidence-quote">
+                    “{{ evidence_item.quote }}”
+                    <div class="evidence-quote-footer">
+                      <span class="evidence-quote-note">{{ "Verified against this paper's own text" if evidence_item.verified else "Couldn't confirm this exact wording in this paper's text" }}</span>
+                    </div>
+                  </blockquote>
+                </details>
+              </div>
+            {% endif %}
           {% endif %}
         {% endfor %}
       {% elif not openai_configured %}

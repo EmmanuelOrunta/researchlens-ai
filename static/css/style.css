@@ -1002,6 +1002,82 @@ a.project-card-link:hover {
 }
 .chat-edit-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
 
+/* Evidence tracking (Sprint 5): a <details> per cited source, used identically
+   in Ask the Literature answers, Paper Synthesis, and each AI Summary paragraph
+   (templates/ask_literature.html, paper_synthesis.html, paper_detail.html,
+   project_paper_detail.html) and rebuilt with the same markup client-side for a
+   live-streamed answer (static/js/app.js). One item per line rather than a
+   wrapping chip row, since the expanded quote needs the full width. */
+.evidence-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.6rem;
+}
+.evidence-item summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.22rem 0.65rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: var(--color-chip-bg);
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+}
+/* summary{display:flex} is what suppresses the native disclosure triangle in
+   every current browser - no vendor-prefixed ::marker hack needed. */
+.evidence-item summary:hover { background: var(--color-hover-tint); }
+.evidence-item[open] summary { border-color: var(--color-primary); color: var(--color-primary-dark); }
+.evidence-chevron { font-size: 0.62rem; transition: transform 0.12s ease; }
+.evidence-item[open] .evidence-chevron { transform: rotate(90deg); }
+.evidence-chip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  font-size: 0.6rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.evidence-item.is-verified .evidence-chip-icon { background: var(--color-success-border); color: var(--color-success); }
+.evidence-item.is-unverified .evidence-chip-icon { background: var(--color-danger-border-soft); color: var(--color-text-muted); }
+.evidence-quote {
+  margin: 0.35rem 0 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+.evidence-quote-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-top: 0.45rem;
+  font-style: normal;
+}
+.evidence-quote-note { font-size: 0.72rem; color: var(--color-text-muted); }
+.evidence-quote-link {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--color-primary-dark);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.evidence-quote-link:hover { text-decoration: underline; }
+
 .badge-muted {
   font-size: 0.68rem;
   background: var(--color-chip-bg);

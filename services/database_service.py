@@ -63,6 +63,13 @@ _ADDED_COLUMNS = [
     ("research_projects", "synthesis_text", "TEXT"),
     ("research_projects", "synthesis_paper_ids", "TEXT"),
     ("research_projects", "synthesis_generated_at", "DATETIME"),
+    # Evidence tracking (Sprint 5) - see services/evidence_service.py. Each is a
+    # JSON-encoded string (json.dumps/json.loads at the service layer, same TEXT-
+    # column-as-flexible-blob pattern already used for synthesis_paper_ids above),
+    # NULL until the first evidence-bearing generation happens.
+    ("literature_chat_messages", "evidence", "TEXT"),
+    ("research_projects", "synthesis_evidence", "TEXT"),
+    ("papers", "summary_evidence", "TEXT"),
 ]
 
 

@@ -14,7 +14,13 @@ import json
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort, send_file, Response
 
 from services.database_service import get_session
-from services.project_service import get_project_for_user, get_projects_for_user, set_project_synthesis
+from services.project_service import (
+    get_project_for_user,
+    get_projects_for_user,
+    set_project_synthesis,
+    get_synthesis_evidence,
+)
+from services.evidence_service import attach_paper_titles
 from services.semantic_scholar_service import search_papers as search_semantic_scholar
 from services.openalex_service import search_papers as search_openalex
 from services.paper_service import (
@@ -32,6 +38,7 @@ from services.paper_service import (
     get_projects_for_paper,
     user_can_access_paper,
     set_paper_summary,
+    get_summary_evidence,
     set_saved_paper_relevance,
     set_paper_matrix_fields,
     get_or_fetch_source_text,
@@ -58,6 +65,7 @@ from services.literature_chat_service import (
     get_chat_message,
     get_recent_history_for_prompt,
     add_chat_message,
+    get_message_evidence,
     edit_and_truncate_message,
     clear_chat_history_for_project,
 )
@@ -496,12 +504,20 @@ def paper_synthesis(project_id):
             papers_by_id = {paper.id: paper for paper in papers}
             selected_ids = {pid for pid in ids if pid in papers_by_id}
             synthesis_papers = [papers_by_id[pid] for pid in ids if pid in papers_by_id]
+        else:
+            papers_by_id = {paper.id: paper for paper in papers}
+
+        # Evidence tracking (Sprint 5) - which of the selected papers the CURRENT
+        # synthesis text actually drew a verbatim quote from, enriched with each
+        # cited paper's title so the template can link straight to it.
+        synthesis_evidence = attach_paper_titles(get_synthesis_evidence(project), papers_by_id)
     finally:
         db_session.close()
 
     return render_template(
         "paper_synthesis.html", project=project, papers=papers,
         selected_ids=selected_ids, synthesis_papers=synthesis_papers,
+        synthesis_evidence=synthesis_evidence,
         openai_configured=openai_is_configured(),
     )
 
@@ -546,6 +562,7 @@ def synthesis_stream(project_id):
         research_question = project.research_question
         capsules = [
             {
+                "id": pid,
                 "title": papers_by_id[pid].title,
                 "authors": papers_by_id[pid].authors,
                 "year": papers_by_id[pid].year,
@@ -566,7 +583,10 @@ def synthesis_stream(project_id):
                 try:
                     fresh_project = write_session.query(ResearchProject).get(project_id)
                     if fresh_project is not None:
-                        set_project_synthesis(write_session, fresh_project, event["text"], ordered_ids)
+                        set_project_synthesis(
+                            write_session, fresh_project, event["text"], ordered_ids,
+                            evidence=event.get("evidence"),
+                        )
                 finally:
                     write_session.close()
             yield json.dumps(event) + "\n"
@@ -625,6 +645,13 @@ def ask_literature(project_id):
         project = _get_owned_project_or_404(db_session, project_id)
         papers = get_saved_papers_for_project(db_session, project_id)
         messages = get_chat_messages_for_project(db_session, project_id)
+
+        # Evidence tracking (Sprint 5) - each assistant message keeps its own
+        # attribute (rather than a separate parallel list) so the template's
+        # existing message loop can reach it directly as message.evidence_list.
+        papers_by_id = {paper.id: paper for paper in papers}
+        for message in messages:
+            message.evidence_list = attach_paper_titles(get_message_evidence(message), papers_by_id)
     finally:
         db_session.close()
 
@@ -683,6 +710,7 @@ def ask_literature_stream(project_id):
         research_question = project.research_question
         capsules = [
             {
+                "id": paper.id,
                 "title": paper.title,
                 "authors": paper.authors,
                 "year": paper.year,
@@ -702,7 +730,10 @@ def ask_literature_stream(project_id):
             if event.get("done"):
                 write_session = get_session()
                 try:
-                    answer_message = add_chat_message(write_session, project_id, "assistant", event["text"])
+                    answer_message = add_chat_message(
+                        write_session, project_id, "assistant", event["text"],
+                        evidence=event.get("evidence"),
+                    )
                     event = dict(event, answer_id=answer_message.id)
                 finally:
                     write_session.close()
@@ -762,6 +793,7 @@ def resend_ask_literature_message(project_id, message_id):
         research_question = project.research_question
         capsules = [
             {
+                "id": paper.id,
                 "title": paper.title,
                 "authors": paper.authors,
                 "year": paper.year,
@@ -781,7 +813,10 @@ def resend_ask_literature_message(project_id, message_id):
             if event.get("done"):
                 write_session = get_session()
                 try:
-                    answer_message = add_chat_message(write_session, project_id, "assistant", event["text"])
+                    answer_message = add_chat_message(
+                        write_session, project_id, "assistant", event["text"],
+                        evidence=event.get("evidence"),
+                    )
                     event = dict(event, answer_id=answer_message.id)
                 finally:
                     write_session.close()
@@ -954,6 +989,10 @@ def paper_detail(paper_id):
             abort(404)
         paper = db_session.query(Paper).get(paper_id)
         projects = get_projects_for_paper(db_session, session["user_id"], paper_id)
+        if paper is not None:
+            # Evidence tracking (Sprint 5) - which paragraph(s) of the AI Summary
+            # each verbatim quote supports, keyed by paragraph number (1-6).
+            paper.summary_evidence_dict = get_summary_evidence(paper)
     finally:
         db_session.close()
 
@@ -1038,6 +1077,8 @@ def project_paper_detail(project_id, paper_id):
         if paper is None:
             abort(404)
         notes = ensure_legacy_notes_migrated(db_session, saved_paper)
+        # Evidence tracking (Sprint 5) - see paper_detail() above.
+        paper.summary_evidence_dict = get_summary_evidence(paper)
     finally:
         db_session.close()
 
@@ -1199,7 +1240,7 @@ def summarize_stream(paper_id):
                 try:
                     fresh_paper = write_session.query(Paper).get(paper_id)
                     if fresh_paper is not None:
-                        set_paper_summary(write_session, fresh_paper, event["text"])
+                        set_paper_summary(write_session, fresh_paper, event["text"], evidence=event.get("evidence"))
                 finally:
                     write_session.close()
             yield json.dumps(event) + "\n"
