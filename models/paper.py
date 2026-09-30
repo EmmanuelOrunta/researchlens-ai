@@ -43,6 +43,12 @@ class Paper(Base):
     open_access_pdf_url = Column(String(500), nullable=True)
     summary = Column(Text, nullable=True)                          # AI-generated summary (Sprint 3), NULL until generated
     summary_generated_at = Column(DateTime, nullable=True)
+    # Evidence tracking (Sprint 5): a JSON-encoded dict {paragraph_number (1-6):
+    # {"quote", "verified"}} - a verbatim excerpt from THIS paper's own abstract/
+    # extracted_text that grounds that paragraph of `summary` above, and whether it
+    # was confirmed to really appear there. See services/evidence_service.py's
+    # build_paragraph_evidence().
+    summary_evidence = Column(Text, nullable=True)
     # Literature Matrix fields: like `summary` above, these live on Paper rather than
     # SavedPaper because a paper's methodology/sample/findings/limitations don't depend
     # on which project it's saved to. AI-extracted (see services/openai_service.py's
