@@ -35,7 +35,8 @@
         {% endif %}
       </div>
 
-      <div class="chat-thread" id="chat-thread" data-user-initials="{{ current_user.name | initials }}">
+      <div class="chat-thread" id="chat-thread" data-user-initials="{{ current_user.name | initials }}"
+           data-paper-titles='{{ paper_titles | tojson }}'>
         {% if not messages %}
           <p class="detail-card-empty" id="chat-empty-message">Ask your first question below - answers are grounded in this project's saved papers.</p>
         {% endif %}
@@ -52,12 +53,13 @@
                 <div class="evidence-list" data-evidence-list>
                   {% for item in message.evidence_list %}
                     <details class="evidence-item {{ 'is-verified' if item.verified else 'is-unverified' }}">
-                      <summary>
+                      <summary {% if item.title %}title="{{ item.title }}"{% endif %}>
                         <span class="evidence-chip-icon" aria-hidden="true">{{ "✓" if item.verified else "?" }}</span>
                         {{ item.label }}
                         <span class="evidence-chevron" aria-hidden="true">▸</span>
                       </summary>
                       <blockquote class="evidence-quote">
+                        {% if item.title %}<div class="evidence-quote-title">{{ item.title }}</div>{% endif %}
                         “{{ item.quote }}”
                         <div class="evidence-quote-footer">
                           <span class="evidence-quote-note">{{ "Verified against the saved paper" if item.verified else "Couldn't confirm this exact wording in the saved paper" }}</span>
