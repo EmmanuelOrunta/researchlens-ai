@@ -114,14 +114,16 @@ document.addEventListener("DOMContentLoaded", function () {
     return text;
   }
 
-  // One citation: {label, quote, verified, title (optional - only present once
-  // the server has resolved it via evidence_service.attach_paper_titles(), not
-  // in the raw event this freshly-streamed answer carries), paper_id (optional)}.
+  // One citation: {label, quote, verified, title (optional - the cited paper's
+  // own title; either resolved server-side via evidence_service.attach_paper_
+  // titles(), or filled in below by resolvePaperTitles() for an answer this page
+  // just streamed in), paper_id (optional)}.
   function buildEvidenceItem(item) {
     var details = document.createElement("details");
     details.className = "evidence-item " + (item.verified ? "is-verified" : "is-unverified");
 
     var summary = document.createElement("summary");
+    if (item.title) summary.title = item.title; // native hover tooltip
     var icon = document.createElement("span");
     icon.className = "evidence-chip-icon";
     icon.setAttribute("aria-hidden", "true");
@@ -137,6 +139,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
     var quoteEl = document.createElement("blockquote");
     quoteEl.className = "evidence-quote";
+    if (item.title) {
+      var titleEl = document.createElement("div");
+      titleEl.className = "evidence-quote-title";
+      titleEl.textContent = item.title;
+      quoteEl.appendChild(titleEl);
+    }
     quoteEl.appendChild(document.createTextNode("“" + (item.quote || "") + "”"));
 
     var footer = document.createElement("div");
@@ -151,6 +159,35 @@ document.addEventListener("DOMContentLoaded", function () {
     details.appendChild(quoteEl);
 
     return details;
+  }
+
+  // Parses a data-paper-titles='{"3": "A Survey of...", ...}' attribute (see
+  // ask_literature.html / paper_synthesis.html) into a {paper_id: title} lookup.
+  // Returns {} on anything missing or malformed, never throws.
+  function parsePaperTitles(jsonText) {
+    if (!jsonText) return {};
+    try {
+      var parsed = JSON.parse(jsonText);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch (parseError) {
+      return {};
+    }
+  }
+
+  // Fills in each evidence item's "title" from a {paper_id: title} lookup when
+  // the item doesn't already have one - true the moment a page loads (server
+  // already resolved it via attach_paper_titles()), but not yet true for an
+  // answer this same page visit just streamed in, since the raw NDJSON event
+  // only carries paper_id/label/quote/verified. Never overwrites a title the
+  // server already resolved, and leaves a paper_id with no match (removed from
+  // the project since) without a title, same as the server-side fallback.
+  function resolvePaperTitles(items, paperTitles) {
+    if (!items || !items.length) return items;
+    return items.map(function (item) {
+      if (item.title || item.paper_id === undefined || item.paper_id === null) return item;
+      var title = paperTitles[String(item.paper_id)];
+      return title ? Object.assign({}, item, { title: title }) : item;
+    });
   }
 
   // Returns a <div class="evidence-list"> holding one buildEvidenceItem() per
@@ -242,6 +279,9 @@ document.addEventListener("DOMContentLoaded", function () {
       var evidenceParagraphs = button.dataset.evidenceParagraphs === "true";
       var evidenceTargetId = button.dataset.evidenceTarget;
       var pendingEvidence = null;
+      // {paper.id: paper.title} for Paper Synthesis's button (see paper_synthesis.html) -
+      // empty for every other [data-stream-url] button, which don't carry the attribute.
+      var paperTitles = parsePaperTitles(button.dataset.paperTitles);
 
       // Rebuilds the target(s)' contents from fullText every time new text arrives,
       // rather than appending in place - simpler and safer than trying to patch in a
@@ -393,7 +433,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     var evidenceTarget = document.getElementById(evidenceTargetId);
                     if (evidenceTarget) {
                       evidenceTarget.innerHTML = "";
-                      var evidenceListEl = buildEvidenceList(pendingEvidence);
+                      var evidenceListEl = buildEvidenceList(resolvePaperTitles(pendingEvidence, paperTitles));
                       if (evidenceListEl) evidenceTarget.appendChild(evidenceListEl);
                     }
                   }
@@ -618,6 +658,11 @@ document.addEventListener("DOMContentLoaded", function () {
     var thread = document.getElementById("chat-thread");
     if (!textarea || !button || !thread) return;
     var userInitials = thread.dataset.userInitials || "";
+    // {paper.id: paper.title} for every paper saved to this project (see
+    // ask_literature.html) - lets renderBubbleEvidence() below show a title on a
+    // citation chip for an answer streamed in THIS page visit, same as a
+    // server-rendered one already gets via evidence_service.attach_paper_titles().
+    var paperTitles = parsePaperTitles(thread.dataset.paperTitles);
 
     function scrollToBottom() {
       thread.scrollTop = thread.scrollHeight;
@@ -653,14 +698,16 @@ document.addEventListener("DOMContentLoaded", function () {
     // Evidence tracking (Sprint 5): inserts (or replaces) an assistant bubble's
     // citation list right after its body and before its hover actions, matching
     // where templates/ask_literature.html renders it server-side. `items` mirrors
-    // the raw {"evidence": [...]} the server sends - no "title" yet (that's only
-    // resolved once the page is reloaded and the route re-attaches it via
-    // evidence_service.attach_paper_titles()), so a freshly-streamed citation
-    // shows its label and quote but not yet a "View paper" link.
+    // the raw {"evidence": [...]} the server sends - resolvePaperTitles() fills in
+    // each entry's paper title from this page's own paperTitles lookup, the same
+    // title a reload would get from evidence_service.attach_paper_titles(), so a
+    // freshly-streamed citation shows one immediately rather than only after a
+    // reload (the "View paper" link still waits for a reload, since that needs a
+    // real route rather than just a title to show).
     function renderBubbleEvidence(bubble, items) {
       var existing = bubble.querySelector("[data-evidence-list]");
       if (existing) existing.remove();
-      var listEl = buildEvidenceList(items);
+      var listEl = buildEvidenceList(resolvePaperTitles(items, paperTitles));
       if (!listEl) return;
       var actions = bubble.querySelector(".chat-message-actions");
       bubble.insertBefore(listEl, actions || null);
