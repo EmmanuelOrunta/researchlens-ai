@@ -511,13 +511,18 @@ def paper_synthesis(project_id):
         # synthesis text actually drew a verbatim quote from, enriched with each
         # cited paper's title so the template can link straight to it.
         synthesis_evidence = attach_paper_titles(get_synthesis_evidence(project), papers_by_id)
+        # {paper.id: paper.title} for every paper saved to this project - handed to
+        # the page as JSON so static/js/app.js can show a title on an evidence chip
+        # from a synthesis generated THIS page visit too, before a reload would
+        # otherwise be needed to pick it up via attach_paper_titles() above.
+        paper_titles = {paper.id: paper.title for paper in papers}
     finally:
         db_session.close()
 
     return render_template(
         "paper_synthesis.html", project=project, papers=papers,
         selected_ids=selected_ids, synthesis_papers=synthesis_papers,
-        synthesis_evidence=synthesis_evidence,
+        synthesis_evidence=synthesis_evidence, paper_titles=paper_titles,
         openai_configured=openai_is_configured(),
     )
 
@@ -652,12 +657,17 @@ def ask_literature(project_id):
         papers_by_id = {paper.id: paper for paper in papers}
         for message in messages:
             message.evidence_list = attach_paper_titles(get_message_evidence(message), papers_by_id)
+        # {paper.id: paper.title} for every paper saved to this project - handed to
+        # the page as JSON so static/js/app.js can show a title on an evidence chip
+        # from an answer streamed THIS page visit too, before a reload would
+        # otherwise be needed to pick it up via attach_paper_titles() above.
+        paper_titles = {paper.id: paper.title for paper in papers}
     finally:
         db_session.close()
 
     return render_template(
         "ask_literature.html", project=project, papers=papers,
-        messages=messages, openai_configured=openai_is_configured(),
+        messages=messages, paper_titles=paper_titles, openai_configured=openai_is_configured(),
     )
 
 
