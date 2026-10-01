@@ -1060,6 +1060,17 @@ a.project-card-link:hover {
   color: var(--color-text-secondary);
   line-height: 1.5;
 }
+/* The cited paper's own title, shown above its quote - not italic, so it reads
+   as a label rather than part of the quoted text itself. Only present when the
+   evidence entry has a resolved paper_id (Ask the Literature / Paper Synthesis),
+   never on the AI Summary's own evidence (that's always "this paper"). */
+.evidence-quote-title {
+  font-style: normal;
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: var(--color-text);
+  margin-bottom: 0.3rem;
+}
 .evidence-quote-footer {
   display: flex;
   align-items: center;
