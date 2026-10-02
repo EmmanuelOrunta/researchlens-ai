@@ -1,153 +1,115 @@
-# ResearchLens AI (Flask + HTML/CSS/JS build)
+# ResearchLens AI
 
-An AI-assisted academic research workspace. Users can register and sign in, create
-research projects, search academic literature across two scholarly APIs, save papers to
-a project (or upload their own PDFs), and get AI-generated summaries, relevance
-analysis, a structured literature comparison matrix, a flowing multi-paper synthesis,
-and a grounded Q&A chat over their own saved papers - every AI answer citing exactly
-which paper (and which sentence) it drew from - all inside one consistent Flask app,
-in light or dark mode.
+**An AI-assisted research workspace that cites its sources.** Search academic
+literature across two scholarly APIs, save papers to a project, and get AI
+summaries, a structured comparison matrix, a multi-paper synthesis, and a
+ChatGPT-style Q&A chat over your own saved papers — where every AI answer
+links back to the exact paper and sentence it drew from, verified against the
+paper's own text. Built end-to-end with Flask, SQLAlchemy, and a hand-written
+HTML/CSS/JS frontend — no frontend framework, no UI kit.
 
-This README covers everything shipped through **Sprint 5**:
-
-- **Sprint 1 - Foundation & Authentication:** registration, login/logout, dashboard,
-  research-project management, account settings, account deletion.
-- **Sprint 2 - Academic Research Discovery:** combined Semantic Scholar + OpenAlex
-  search, year filtering and sorting, saving papers to a project, direct PDF upload,
-  and the full visual redesign (this build's real HTML/CSS/JS frontend, replacing the
-  original Streamlit prototype before Sprint 1 was submitted).
-- **Sprint 3 - AI Paper Analysis:** OpenAI-powered paper summaries and relevance
-  analysis with live streaming output, a per-paper detail page, the "AI Paper
-  Analysis" hub page across every saved paper, and a multi-note system for saved
-  papers.
-- **Sprint 4 - Research Intelligence:** the Literature Matrix (a structured,
-  AI-extracted and hand-editable comparison table, exportable to Excel/PDF/Word),
-  Paper Synthesis (a single flowing AI narrative across a hand-picked set of papers),
-  and Ask the Literature (a running, ChatGPT-style Q&A conversation grounded in every
-  paper saved to a project).
-- **Sprint 5 - Evidence Tracking & Design Polish:** every AI answer from Ask the
-  Literature, Paper Synthesis, and the AI Summary now links back to the exact saved
-  paper (and the exact verbatim sentence within it) it drew from, with each quote
-  checked against the paper's own text and marked verified or not; a full ChatGPT/
-  Claude-style redesign of the Ask the Literature chat UI; and an app-wide light/dark
-  theme toggle.
-
-Still to come (see [section 9](#9-whats-next)): a minimal tool-using OpenAI Agent, a
-prepared offline-safe demo mode, and a broader usability/testing pass.
+![Python](https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white)
+![Flask](https://img.shields.io/badge/flask-3.x-000000?logo=flask&logoColor=white)
+![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-ORM-D71F00)
+![OpenAI](https://img.shields.io/badge/OpenAI-Responses%20API-412991?logo=openai&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-database-07405E?logo=sqlite&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 ---
 
-## 1. Install the tools (one-time setup)
+## Why this project
 
-If you already have Python and VS Code installed (with the Python extension), skip to
-section 2.
+Most "AI summary" tools ask you to trust a block of generated text with no
+way to check it. ResearchLens AI doesn't: every claim its AI makes — in a
+chat answer, a paper synthesis, or a one-paragraph summary — is tagged with
+the exact paper and the exact sentence it came from, and that quote is
+checked server-side against the paper's own saved text before it's ever
+shown. If the quote doesn't match verbatim, it's still shown, just labeled
+differently, instead of silently hidden. That mechanic — turning "trust the
+AI" into "check the AI" — is the core idea the rest of the app is built
+around.
 
-### Install Python
-1. Go to [python.org/downloads](https://www.python.org/downloads/) and download Python 3.11 or later.
-2. Run the installer. **On Windows, tick "Add Python to PATH" before clicking Install.**
-3. Check it worked: open a terminal and run `python --version`.
+## Screenshots
 
-### Install VS Code
-1. Download from [code.visualstudio.com](https://code.visualstudio.com/).
-2. Install the **Python** extension (by Microsoft) from the Extensions panel (`Ctrl+Shift+X`).
+<p align="center"><img src="docs/screenshots/login.png" width="820" alt="Login screen"><br><sub>Login / registration, with the light-dark theme toggle visible in the top bar</sub></p>
 
----
+<p align="center"><img src="docs/screenshots/dashboard.png" width="820" alt="Dashboard"><br><sub>Dashboard — stat cards, recent projects, quick actions</sub></p>
 
-## 2. Open the project in VS Code
+<p align="center"><img src="docs/screenshots/dashboard_dark.png" width="820" alt="Dashboard in dark mode"><br><sub>The same dashboard in dark mode — one toggle, applied app-wide</sub></p>
 
-1. **File → Open Folder...** and select this `researchlens-ai-flask` folder.
-2. Open a terminal: **Terminal → New Terminal** (or `` Ctrl+` ``).
+<p align="center"><img src="docs/screenshots/search_results.png" width="820" alt="Paper search results"><br><sub>Searching Semantic Scholar + OpenAlex in one query, with PDF upload as an alternative</sub></p>
 
----
+<p align="center"><img src="docs/screenshots/literature_matrix.png" width="820" alt="Literature Matrix"><br><sub>Literature Matrix — AI-extracted or hand-edited, exportable to Excel/PDF/Word (note the two un-extracted rows — both states are supported)</sub></p>
 
-## 3. Create a virtual environment
+<p align="center"><img src="docs/screenshots/paper_synthesis.png" width="820" alt="Paper Synthesis with an expanded evidence chip"><br><sub>Paper Synthesis — a flowing AI narrative across chosen papers, with an evidence chip expanded to show its source quote</sub></p>
+
+<p align="center"><img src="docs/screenshots/ask_the_literature.png" width="820" alt="Ask the Literature chat with an expanded evidence chip"><br><sub>Ask the Literature — a running chat grounded in a project's saved papers, citing its source sentence by sentence</sub></p>
+
+> These are rendered from a demo dataset for this README, not live screenshots of a
+> deployed instance — run the app locally (see [Getting started](#getting-started)) to
+> try it with your own papers.
+
+## Highlights
+
+- **Evidence-tracked AI answers.** Ask the Literature, Paper Synthesis, and the AI
+  Summary each append a machine-readable citation block that's parsed out, checked
+  quote-by-quote against the real source text, and rendered as a clickable chip —
+  verified or not, never hidden.
+- **Grounded Q&A chat.** A persistent, ChatGPT-style conversation per project, scoped to
+  that project's saved papers, with edit-and-resend on any earlier question.
+- **Multi-paper synthesis.** Pick any set of saved papers and get one flowing,
+  citation-backed narrative across them, instead of reading each paper's summary
+  separately.
+- **Structured comparison matrix.** A Methodology / Sample / Findings / Limitations
+  table across a project's papers, AI-extractable row by row or edited by hand,
+  exportable to Excel, PDF, and Word from the same data.
+- **Dual-source search.** Semantic Scholar and OpenAlex queried together and
+  de-duplicated by DOI, plus direct PDF upload with text extraction.
+- **Hand-built frontend.** No React, no Bootstrap — Jinja2 templates, vanilla JS, and a
+  single CSS file implementing a full light/dark design system with CSS custom
+  properties.
+- **Session auth and per-user access control** on every project/paper query, not just
+  at the login gate.
+
+## Tech stack
+
+| Layer | Choice |
+|---|---|
+| Backend | Python, Flask (blueprints: auth / main / papers / settings) |
+| Database | SQLite via SQLAlchemy ORM, with a lightweight in-code column-migration helper |
+| AI | OpenAI Responses API, streamed token-by-token to the browser |
+| Literature search | Semantic Scholar API, OpenAlex API |
+| PDF handling | PyMuPDF (text extraction), reportlab (PDF export) |
+| Document export | openpyxl (Excel), python-docx (Word) |
+| Auth | bcrypt password hashing, signed session cookies |
+| Frontend | Jinja2, vanilla JavaScript (`fetch()` streaming), hand-written CSS (no framework) |
+
+## Architecture
 
 ```
-python -m venv venv
+Browser → routes/ (controllers) → services/ (business logic, DB access) → models/ (SQLAlchemy)
+                                        ↓
+                            templates/ (Jinja2) → HTML back to browser
 ```
 
-**Activate it:**
+A normal page request is the straightforward Flask loop: a route matches the URL, calls
+into `services/` to read or write the database, picks a template, and returns HTML. The
+AI features work differently — the browser opens a streaming `fetch()`, and
+`services/openai_service.py` streams tokens back from OpenAI's Responses API through the
+Flask route to the page in real time, the same way ChatGPT's own answers appear word by
+word. For the three evidence-tracked features, the model is also instructed to append a
+trailing, machine-readable citation block after its normal answer;
+`services/evidence_service.py` strips that block before anything is shown or saved,
+verifies each quote against the exact source text the model was given, and the page
+renders the result as small citation chips — the raw block itself is never visible, even
+for a split second while the answer is still streaming in.
 
-- Windows (PowerShell):
-  ```
-  venv\Scripts\Activate.ps1
-  ```
-  If PowerShell blocks this, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
-  once (type `Y` when asked), then try again.
-- Mac / Linux:
-  ```
-  source venv/bin/activate
-  ```
+Every query for a specific project or paper filters by the *requesting user's own id*,
+not just the record's id, which is what stops one account from viewing or guessing into
+another account's data.
 
-Your terminal prompt should now start with `(venv)`. You'll need to activate the venv
-again every time you open a new terminal to work on this project.
-
----
-
-## 4. Install the project's dependencies
-
-```
-pip install -r requirements.txt
-```
-
-This installs Flask, SQLAlchemy, bcrypt, python-dotenv, requests, PyMuPDF (PDF text
-extraction), the `openai` client (Sprint 3+'s AI features), and openpyxl / reportlab /
-python-docx (Sprint 4's Literature Matrix export to Excel, PDF, and Word).
-
----
-
-## 5. Set up your API keys (needed for search and AI features)
-
-Copy `.env.example` to a new file named `.env` in the project root, then fill in:
-
-- **`FLASK_SECRET_KEY`** - any long random string, used to sign login session cookies.
-  Generate one with `python -c "import secrets; print(secrets.token_hex(32))"`.
-- **`OPENAI_API_KEY`** - required for every AI feature: AI Summary, Relevance
-  Analysis, the Literature Matrix's AI extraction, Paper Synthesis, and Ask the
-  Literature. Get one at [platform.openai.com/api-keys](https://platform.openai.com/api-keys).
-  Without a key, those buttons show an "Add an OpenAI key" message instead of failing
-  silently - the rest of the app works fine without it.
-- **`SEMANTIC_SCHOLAR_API_KEY`** - optional. Paper search works without it (OpenAlex
-  needs no key at all), but a free key raises Semantic Scholar's rate limit above the
-  shared, unauthenticated pool. Request one at
-  [semanticscholar.org/product/api](https://www.semanticscholar.org/product/api#api-key).
-
-`.env` is git-ignored, so your keys are never committed.
-
----
-
-## 6. Run the app
-
-```
-python app.py
-```
-
-You'll see output ending in something like `Running on http://127.0.0.1:5000`. Open
-that address in your browser - you should see the ResearchLens AI login screen.
-
-Try it out:
-1. Click **Create one** (register), fill in the form, submit.
-2. You'll land on the Dashboard, signed in.
-3. Click **+ New Research Project**, create one, see it appear on your dashboard.
-4. Open the project, click **Search Papers**, search for a topic, and save a result
-   to the project (or upload a PDF instead).
-5. Open a saved paper and click **Generate AI Summary** or **Analyze Relevance**
-   (requires an OpenAI key) to watch the analysis stream in live, then add a note.
-6. Save at least two papers to a project, open **Literature Matrix**, click
-   **Extract with AI** on a row, then **Paper Synthesis** to generate a combined
-   narrative across a chosen set of papers.
-7. Open **Ask the Literature** and ask a question about the project's saved papers -
-   the answer streams in like a chat message, with a small citation chip under it for
-   each paper it drew from. Click a chip to see the exact quote and whether it was
-   verified against that paper's own text.
-8. Try the moon/sun icon in the top bar to switch between light and dark mode.
-9. Click **Sign out**, then log back in with the same email/password.
-
-To stop the app: click the terminal and press `Ctrl+C`.
-
----
-
-## 7. How the code is organised
+<details>
+<summary><strong>Full project structure</strong> (click to expand)</summary>
 
 ```
 researchlens-ai-flask/
@@ -181,11 +143,11 @@ researchlens-ai-flask/
 │   ├── literature_chat_service.py ← Ask the Literature's conversation history: one
 │   │                                 row per turn, edit-and-truncate for a resent
 │   │                                 question, and each answer's evidence
-│   ├── evidence_service.py        ← evidence tracking (Sprint 5): the trailing-block
-│   │                                 prompt instructions every AI feature appends,
-│   │                                 parsing that block back out, verifying each
-│   │                                 quote against the exact source text the model
-│   │                                 was shown, and building citation labels like
+│   ├── evidence_service.py        ← evidence tracking: the trailing-block prompt
+│   │                                 instructions every AI feature appends, parsing
+│   │                                 that block back out, verifying each quote
+│   │                                 against the exact source text the model was
+│   │                                 shown, and building citation labels like
 │   │                                 "Huang and Lee (2025)" from a paper's own
 │   │                                 authors/year
 │   ├── pdf_service.py             ← validating and saving uploaded PDFs, text
@@ -260,44 +222,23 @@ researchlens-ai-flask/
 │                                     Ask the Literature chat client (ask, edit,
 │                                     resend, copy), and rendering each feature's
 │                                     evidence chips as they stream in
+├── docs/screenshots/             ← the screenshots used in this README
 ├── database/                     ← researchlens.db (SQLite file), created here on first run
 ├── uploads/                      ← uploaded PDFs, saved under randomly generated
 │                                     filenames so two users' files never collide
 ├── data/                         ← reserved for future features (e.g. cached embeddings)
 ├── requirements.txt
-├── .env.example                  ← copy to .env and fill in your keys (section 5)
+├── .env.example                  ← copy to .env and fill in your keys
 └── .gitignore
 ```
 
-**How a page request flows:** browser hits a URL → Flask matches it to a function in
-`routes/` → that function talks to `services/` to read/write the database → it picks a
-template from `templates/` and fills in the blanks → Flask sends back the finished HTML.
-The AI features work a little differently: the browser opens a streaming `fetch()`
-request, and `openai_service.py` streams tokens back from OpenAI's Responses API
-through the Flask route to the page in real time, the same way ChatGPT's own answers
-appear word by word, rather than making the user wait for the whole result before
-showing anything. For Ask the Literature, Paper Synthesis, and the AI Summary, the
-model is also instructed to append a trailing, machine-readable block of citations
-after its normal answer; `evidence_service.py` strips that block out before the text is
-shown or saved, checks each quote against the exact source text the model was given,
-and the page renders the result as small citation chips - the raw block itself is never
-shown, even for a split second while it's still streaming in.
+</details>
 
-**On login sessions:** Flask keeps track of who's logged in using a signed cookie
-(`session["user_id"]`). The `login_required` decorator (defined in `main_routes.py`
-and reused by every blueprint) checks for that cookie before running a page's code, and
-sends visitors to `/login` if it's missing.
+## Feature tour
 
-**A note on access control:** every query for a specific project or paper filters by
-the *requesting user's own id*, not just the record's id (see `get_project_for_user`
-and `user_can_access_paper`) - this is what stops one account from viewing or guessing
-into another account's data.
+<details>
+<summary><strong>Foundation & authentication</strong></summary>
 
----
-
-## 8. Feature tour by sprint
-
-### Sprint 1 - Foundation & Authentication
 - Secure registration, login, and logout, with passwords hashed and salted via bcrypt
   (never stored in plain text).
 - Session-based authentication guarding every workspace page.
@@ -308,7 +249,11 @@ into another account's data.
 - Full account deletion (password-confirmed, cascading to the account's own projects
   and saved papers).
 
-### Sprint 2 - Academic Research Discovery
+</details>
+
+<details>
+<summary><strong>Academic research discovery</strong></summary>
+
 - Combined paper search across **Semantic Scholar** and **OpenAlex**, two free,
   official scholarly APIs, merged and de-duplicated by DOI (falling back to title) so
   the same paper never appears twice.
@@ -318,83 +263,183 @@ into another account's data.
   to a project's library.
 - Direct PDF upload with text extraction via PyMuPDF.
 - The complete custom Flask + Jinja2 + hand-written CSS interface (Fraunces for
-  headings, Inter for body text) that this build has used since before Sprint 1's
-  submission, replacing the originally planned Streamlit frontend.
+  headings, Inter for body text) — no frontend framework.
 
-### Sprint 3 - AI Paper Analysis
-- **OpenAI-powered AI Summary:** a structured, 300-500 word summary generated for any
-  saved paper, streamed live into the page as it's written rather than appearing all
-  at once after a wait. The summary always renders as six distinct, justified
-  paragraphs in a fixed order - author(s) and research question, problem statement and
-  proposed solution, methodology, results/findings, conclusion, and critical
-  reflection - both while it streams in and on every later page load.
+</details>
+
+<details>
+<summary><strong>AI paper analysis</strong></summary>
+
+- **OpenAI-powered AI Summary:** a structured, 300–500 word summary generated for any
+  saved paper, streamed live into the page as it's written. The summary always renders
+  as six distinct, justified paragraphs in a fixed order — author(s) and research
+  question, problem statement and proposed solution, methodology, results/findings,
+  conclusion, and critical reflection.
 - **Relevance Analysis:** an AI-generated assessment of how relevant a saved paper is
   to a project's specific research question, also streamed live.
-- **Per-paper detail page** (`project_paper_detail.html`): one place to read a saved
-  paper's abstract, generate or re-read its AI Summary and Relevance Analysis, and
-  manage its notes, scoped to the project it's saved in.
-- **"AI Paper Analysis" hub page** (`/analysis`): every paper saved across all of a
-  user's projects in one view, showing which projects each paper belongs to and
-  whether it's been analyzed yet.
-- **Multi-note system:** any number of free-text notes per saved paper (not just one),
-  each with an optional custom title, addable/editable/deletable independently.
+- **Per-paper detail page:** one place to read a saved paper's abstract, generate or
+  re-read its AI Summary and Relevance Analysis, and manage its notes, scoped to the
+  project it's saved in.
+- **"AI Paper Analysis" hub page:** every paper saved across all of a user's projects
+  in one view, showing which projects each paper belongs to and whether it's been
+  analyzed yet.
+- **Multi-note system:** any number of free-text notes per saved paper, each with an
+  optional custom title, addable/editable/deletable independently.
 
-### Sprint 4 - Research Intelligence
+</details>
+
+<details>
+<summary><strong>Research intelligence</strong></summary>
+
 - **Literature Matrix:** a structured, row-per-paper comparison table across every
-  paper saved to a project, with four fixed columns - Methodology, Sample, Findings,
+  paper saved to a project, with four fixed columns — Methodology, Sample, Findings,
   Limitations. Each row can be filled in with one click ("Extract with AI", streamed
   live) or edited by hand at any time, since the two aren't mutually exclusive.
   Exportable as a formatted **Excel workbook**, **PDF**, or **Word document**, all
   three built from the same data so they never drift apart.
 - **Paper Synthesis:** pick any two or more papers saved to a project and generate a
-  single flowing, multi-paragraph AI narrative across them - summarizing, comparing,
+  single flowing, multi-paragraph AI narrative across them — summarizing, comparing,
   and critiquing them together, the way a literature review's own synthesis section
   would, rather than one row per paper.
 - **Ask the Literature:** a running, ChatGPT-style Q&A conversation scoped to one
   project, answered using every paper currently saved to it. Questions and answers
   persist as a real conversation history; an earlier question can be edited, which
-  discards everything asked after it and generates a fresh answer, the same "edit and
-  resend" behavior a modern chat app gives.
+  discards everything asked after it and generates a fresh answer.
 
-### Sprint 5 - Evidence Tracking & Design Polish
+</details>
+
+<details>
+<summary><strong>Evidence tracking & design polish</strong></summary>
+
 - **Evidence tracking:** Ask the Literature, Paper Synthesis, and the AI Summary each
-  now cite their sources at the sentence level, not just "trust the AI." The model is
+  cite their sources at the sentence level, not just "trust the AI." The model is
   instructed to append a trailing block naming exactly which paper (or, for the AI
   Summary, which of its six paragraphs) each part of its answer came from, along with
-  a verbatim quote. The server parses that block out, checks each quote as an exact
-  match against the real text the model was shown (that paper's own saved material,
-  never anything it wasn't given), and renders the result as a small citation chip
-  under the relevant text - click it to see the quote, a "View paper →" link, and
-  whether it was verified. An unverified quote is still shown, just labeled
-  differently, rather than silently hidden - a paraphrase or a quote drawn from
-  matrix-derived text can legitimately fail an exact-match check without being wrong.
-  During live streaming, the trailing block itself is never visible, even for a
-  fraction of a second - it's stripped client-side as it arrives, and the chips appear
-  the moment generation finishes.
-- **Ask the Literature redesign:** the chat thread was rebuilt to match a modern AI
-  chat product - avatar-initialed rows, an unboxed assistant answer versus a compact
-  bubble for your own question, hover-reveal icon actions (pencil to edit, clipboard
-  to copy) in place of text links, and a rounded-pill composer with a circular send
-  button.
+  a verbatim quote and the cited paper's title. The server parses that block out,
+  checks each quote as an exact match against the real text the model was shown, and
+  renders the result as a small citation chip under the relevant text — click it to
+  see the paper's title, the quote, a "View paper →" link, and whether it was
+  verified. An unverified quote is still shown, just labeled differently, rather than
+  silently hidden — a paraphrase or a quote drawn from matrix-derived text can
+  legitimately fail an exact-match check without being wrong. During live streaming,
+  the trailing block itself is never visible, even for a fraction of a second.
+- **Ask the Literature redesign:** the chat thread matches a modern AI chat product —
+  avatar-initialed rows, an unboxed assistant answer versus a compact bubble for your
+  own question, hover-reveal icon actions (pencil to edit, clipboard to copy), and a
+  rounded-pill composer with a circular send button.
 - **Light/dark theme:** a moon/sun toggle in the top bar (and on the login/register
   screens) switches the whole app between a light and a dark palette, persisted per
   browser and applied before the very first paint so there's no flash of the wrong
   theme on load.
 
----
+</details>
 
-## 9. What's next
+## Getting started
 
-Still on the roadmap:
+### 1. Prerequisites
 
-- **A minimal tool-using OpenAI Agent** as the project's core agentic-AI deliverable,
-  beyond the prompt-and-stream pattern every current AI feature uses.
-- **A prepared offline-safe demo mode**, so the app's core flows can be shown without
-  a live OpenAI/Semantic Scholar/OpenAlex connection.
+- [Python 3.11+](https://www.python.org/downloads/) (on Windows, tick "Add Python to
+  PATH" during install)
+- A code editor — [VS Code](https://code.visualstudio.com/) with the Python extension
+  works well
+
+### 2. Clone and set up a virtual environment
+
+```bash
+git clone <this-repo-url>
+cd researchlens-ai-flask
+python -m venv venv
+```
+
+Activate it:
+
+```bash
+# Windows (PowerShell)
+venv\Scripts\Activate.ps1
+# Mac / Linux
+source venv/bin/activate
+```
+
+Your terminal prompt should now start with `(venv)`. Re-activate every time you open a
+new terminal.
+
+### 3. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+Installs Flask, SQLAlchemy, bcrypt, python-dotenv, requests, PyMuPDF (PDF text
+extraction), the `openai` client, and openpyxl / reportlab / python-docx (Literature
+Matrix export to Excel, PDF, and Word).
+
+### 4. Set up your API keys
+
+Copy `.env.example` to a new file named `.env` in the project root, then fill in:
+
+- **`FLASK_SECRET_KEY`** — any long random string, used to sign login session cookies.
+  Generate one with `python -c "import secrets; print(secrets.token_hex(32))"`.
+- **`OPENAI_API_KEY`** — required for every AI feature: AI Summary, Relevance
+  Analysis, the Literature Matrix's AI extraction, Paper Synthesis, and Ask the
+  Literature. Get one at [platform.openai.com/api-keys](https://platform.openai.com/api-keys).
+  Without a key, those buttons show an "Add an OpenAI key" message instead of failing
+  silently — the rest of the app works fine without it.
+- **`SEMANTIC_SCHOLAR_API_KEY`** — optional. Paper search works without it (OpenAlex
+  needs no key at all), but a free key raises Semantic Scholar's rate limit above the
+  shared, unauthenticated pool. Request one at
+  [semanticscholar.org/product/api](https://www.semanticscholar.org/product/api#api-key).
+
+`.env` is git-ignored, so your keys are never committed.
+
+### 5. Run it
+
+```bash
+python app.py
+```
+
+Open the printed address (typically `http://127.0.0.1:5000`) — you should see the
+ResearchLens AI login screen.
+
+<details>
+<summary><strong>A quick walkthrough once it's running</strong></summary>
+
+1. Click **Create one** (register), fill in the form, submit.
+2. You'll land on the Dashboard, signed in.
+3. Click **+ New Research Project**, create one, see it appear on your dashboard.
+4. Open the project, click **Search Papers**, search for a topic, and save a result
+   to the project (or upload a PDF instead).
+5. Open a saved paper and click **Generate AI Summary** or **Analyze Relevance**
+   (requires an OpenAI key) to watch the analysis stream in live, then add a note.
+6. Save at least two papers to a project, open **Literature Matrix**, click
+   **Extract with AI** on a row, then **Paper Synthesis** to generate a combined
+   narrative across a chosen set of papers.
+7. Open **Ask the Literature** and ask a question about the project's saved papers —
+   the answer streams in like a chat message, with a small citation chip under it for
+   each paper it drew from. Click a chip to see the exact quote and whether it was
+   verified against that paper's own text.
+8. Try the moon/sun icon in the top bar to switch between light and dark mode.
+9. Click **Sign out**, then log back in with the same email/password.
+
+To stop the app: `Ctrl+C` in the terminal.
+
+</details>
+
+## Roadmap
+
+- **A minimal tool-using OpenAI Agent** as a step beyond the prompt-and-stream pattern
+  every current AI feature uses.
+- **A prepared offline-safe demo mode**, so the app's core flows can be shown without a
+  live OpenAI/Semantic Scholar/OpenAlex connection.
 - **A broader usability and AI-accuracy testing pass**, plus end-to-end testing of
   authentication and search, and general bug fixes.
 
-Research Gaps detection, originally planned as a separate feature, is now effectively
-covered by Paper Synthesis and Ask the Literature together - both already surface
-where the saved literature agrees, disagrees, or is thin, with citations back to
-exactly where each claim comes from.
+Research gap detection, originally planned as a separate feature, is now effectively
+covered by Paper Synthesis and Ask the Literature together — both already surface where
+the saved literature agrees, disagrees, or is thin, with citations back to exactly where
+each claim comes from.
+
+---
+
+<sub>Built as an academic capstone project, developed iteratively across five stages:
+authentication & project management, literature search, AI paper analysis, research
+intelligence (matrix/synthesis/chat), and evidence tracking & design polish.</sub>
