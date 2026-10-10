@@ -75,9 +75,7 @@ features — less code to maintain, and one place to trust.
 
 ## 4. The actual code, explained like you've never coded before
 
-All of this lives in one file: `services/evidence_service.py`. Below are the
-three pieces that matter most. You do not need to memorize the code — just
-be able to explain, in your own words, what each piece does.
+All of this lives in one file: `services/evidence_service.py`. Below are the three pieces that matter most. You do not need to memorize the code — just be able to explain, in your own words, what each piece does.
 
 ### a) The instruction we give the AI
 
