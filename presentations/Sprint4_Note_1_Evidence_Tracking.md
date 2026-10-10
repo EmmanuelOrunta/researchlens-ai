@@ -62,9 +62,7 @@ with a special marker that would never normally appear in regular writing,
 and our code (and the on-screen typing effect) always cuts everything from
 that marker onward before displaying text.
 
-**Decision 4 — Build this once, reuse it everywhere.** Evidence Tracking
-isn't just one feature bolted onto one page — it is reused by all three
-AI-answer features in this sprint: the single-paper AI Summary, Paper
+**Decision 4 — Build this once, reuse it everywhere.** Evidence Tracking isn't just one feature bolted onto one page — it is reused by all three AI-answer features in this sprint: the single-paper AI Summary, Paper
 Synthesis (several papers), and Ask the Literature (chat). Rather than
 writing this logic three times, we built one shared file,
 `evidence_service.py`, and every AI-answering function calls into it. This
