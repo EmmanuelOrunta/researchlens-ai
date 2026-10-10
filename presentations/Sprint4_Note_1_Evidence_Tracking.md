@@ -89,10 +89,7 @@ MULTI_EVIDENCE_INSTRUCTION = (
 )
 ```
 
-**In plain words:** this is just a sentence of instructions we glue onto the
-end of every prompt we send to the AI. It's the same idea as telling a
-student "show your working" on a math test. We're not writing any clever
-logic here — we're literally asking the AI nicely, in English, to list which
+**In plain words:** this is just a sentence of instructions we glue onto the end of every prompt we send to the AI. It's the same idea as telling a student "show your working" on a math test. We're not writing any clever logic here — we're literally asking the AI nicely, in English, to list which
 papers it used and quote them exactly.
 
 ### b) Checking if the quote is actually real
