@@ -221,6 +221,4 @@ already added to their own project. It can't invent a new "paper" to quote
 from; every quote is checked only against real, saved paper text.
 
 **Q: Why 30 words max per quote?**
-A: Keeps quotes short and genuinely "pointing at evidence" rather than
-copy-pasting huge chunks of the source paper, which would be closer to
-plagiarism than citation.
+A: Keeps quotes short and genuinely "pointing at evidence" rather than copy-pasting huge chunks of the source paper, which would be closer to plagiarism than citation.
