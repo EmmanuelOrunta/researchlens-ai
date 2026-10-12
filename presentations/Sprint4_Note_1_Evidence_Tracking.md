@@ -206,8 +206,7 @@ text-search check, which is near-instant.
 
 **Q: What happens if a paper has no text to check against (e.g. no abstract
 was saved)?**
-A: The search simply can't find a match, so the quote is marked unverified
-rather than the app crashing or guessing.
+A: The search simply can't find a match, so the quote is marked unverified rather than the app crashing or guessing.
 
 **Q: Is this the same mechanism for all three AI features (Summary,
 Synthesis, Ask the Literature)?**
