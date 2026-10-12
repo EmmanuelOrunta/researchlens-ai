@@ -85,8 +85,7 @@ def build_synthesis_capsule(paper) -> str:
     return "No abstract, extracted text, or matrix fields available for this paper."
 ```
 
-**In plain words:** think of this as writing an index card for one paper. It checks, in order: "Do we have Methodology/Sample/Findings/Limitations filled in for this paper? Use those." If not: "Do we at least have an abstract? Use that instead." If there's truly nothing at all, it says so
-plainly rather than pretending there's content. This index card — not the
+**In plain words:** think of this as writing an index card for one paper. It checks, in order: "Do we have Methodology/Sample/Findings/Limitations filled in for this paper? Use those." If not: "Do we at least have an abstract? Use that instead." If there's truly nothing at all, it says so plainly rather than pretending there's content. This index card — not the
 whole paper — is what actually gets sent to the AI.
 
 ### b) Refusing to synthesize fewer than two papers
