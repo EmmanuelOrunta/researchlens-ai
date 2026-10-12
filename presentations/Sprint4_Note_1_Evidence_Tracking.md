@@ -216,8 +216,7 @@ checks one paper's own text; Synthesis and Ask the Literature check against
 whichever of several papers the quote claims to be from.
 
 **Q: Could someone trick the system with a fake paper?**
-A: No — the AI is only ever given the real, saved text of papers the user already added to their own project. It can't invent a new "paper" to quote
-from; every quote is checked only against real, saved paper text.
+A: No — the AI is only ever given the real, saved text of papers the user already added to their own project. It can't invent a new "paper" to quote from; every quote is checked only against real, saved paper text.
 
 **Q: Why 30 words max per quote?**
 A: Keeps quotes short and genuinely "pointing at evidence" rather than copy-pasting huge chunks of the source paper, which would be closer to plagiarism than citation.
