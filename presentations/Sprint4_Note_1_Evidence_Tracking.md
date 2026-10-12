@@ -211,8 +211,7 @@ rather than the app crashing or guessing.
 
 **Q: Is this the same mechanism for all three AI features (Summary,
 Synthesis, Ask the Literature)?**
-A: Yes — one shared file (`evidence_service.py`) powers all three. Summary
-checks one paper's own text; Synthesis and Ask the Literature check against
+A: Yes — one shared file (`evidence_service.py`) powers all three. Summary checks one paper's own text; Synthesis and Ask the Literature check against
 whichever of several papers the quote claims to be from.
 
 **Q: Could someone trick the system with a fake paper?**
