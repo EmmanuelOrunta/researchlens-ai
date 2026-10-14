@@ -130,8 +130,7 @@ for pid in requested_ids:
         ordered_ids.append(pid)
 ```
 
-**In plain words:** `papers_by_id` is the list of papers that genuinely belong to this project, looked up fresh from our own database — not taken on trust from whatever the browser sent. This code walks through every
-paper ID the browser submitted and only keeps it if it's (1) actually one of
+**In plain words:** `papers_by_id` is the list of papers that genuinely belong to this project, looked up fresh from our own database — not taken on trust from whatever the browser sent. This code walks through every paper ID the browser submitted and only keeps it if it's (1) actually one of
 this project's real papers, and (2) not already added (so ticking the same
 box twice, or a glitch sending a duplicate, doesn't count a paper twice).
 Anything that fails either check is silently dropped — the user never even
