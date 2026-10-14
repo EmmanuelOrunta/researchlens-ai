@@ -15,8 +15,7 @@ A running, ChatGPT-style conversation where you can ask questions about every pa
 By this point the app could summarize one paper, and combine several
 hand-picked papers into one synthesis. But a user often doesn't want a formal written piece — they want to *ask something specific*, like "which of these papers used a survey?" or "do any of them disagree on outcomes?" and get a direct answer, then ask a follow-up based on that answer.
 
-That's a different shape of problem from Synthesis: it needs to (1) use the
-**whole library** automatically, not a hand-picked subset, (2) remember
+That's a different shape of problem from Synthesis: it needs to (1) use the **whole library** automatically, not a hand-picked subset, (2) remember
 what was already asked and answered so far, and (3) let someone fix a badly
 worded question without losing the whole conversation.
 
