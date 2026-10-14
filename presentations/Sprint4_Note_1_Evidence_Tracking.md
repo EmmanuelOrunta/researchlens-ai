@@ -189,8 +189,7 @@ Tracking slide.
 ## 7. Questions people might ask us, and simple answers
 
 **Q: What if the AI makes up a quote entirely?**
-A: We check every quote against the actual paper text. If it's not really
-there, we still show it but mark it "not verified," so nobody mistakes an
+A: We check every quote against the actual paper text. If it's not really there, we still show it but mark it "not verified," so nobody mistakes an
 invented quote for a confirmed one.
 
 **Q: Why show unverified quotes at all instead of just deleting them?**
