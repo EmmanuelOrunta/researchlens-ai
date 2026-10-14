@@ -200,8 +200,7 @@ like the app is covering something up. Showing it, clearly labeled, is more
 honest and still useful.
 
 **Q: Does this slow down the AI's answer?**
-A: No — the AI is already generating the evidence block as part of the same
-single answer, so there's no extra waiting. The only extra step is our quick
+A: No — the AI is already generating the evidence block as part of the same single answer, so there's no extra waiting. The only extra step is our quick
 text-search check, which is near-instant.
 
 **Q: What happens if a paper has no text to check against (e.g. no abstract
