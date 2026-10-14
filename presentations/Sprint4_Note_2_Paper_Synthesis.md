@@ -114,8 +114,7 @@ papers_block = "\n\n".join(
 ```
 
 **In plain words:** this goes through the list of selected papers one at a
-time and writes each one out as "Paper 1: ...", "Paper 2: ...", and so on, then glues them all together with blank lines in between. This numbered list is what lets us later say "cite Paper 2" and know exactly which real
-paper that refers to — it's the same numbering trick Evidence Tracking
+time and writes each one out as "Paper 1: ...", "Paper 2: ...", and so on, then glues them all together with blank lines in between. This numbered list is what lets us later say "cite Paper 2" and know exactly which real paper that refers to — it's the same numbering trick Evidence Tracking
 relies on (see that note).
 
 ### d) Double-checking which papers the user is actually allowed to use
