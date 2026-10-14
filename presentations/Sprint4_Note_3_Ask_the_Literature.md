@@ -6,8 +6,7 @@
 
 ## 1. What this feature actually is, in one sentence
 
-A running, ChatGPT-style conversation where you can ask questions about every paper you've saved to a project, get answers grounded in those papers
-specifically, and keep asking follow-up questions in the same thread.
+A running, ChatGPT-style conversation where you can ask questions about every paper you've saved to a project, get answers grounded in those papers specifically, and keep asking follow-up questions in the same thread.
 
 ---
 
