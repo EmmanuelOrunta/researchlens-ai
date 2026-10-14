@@ -194,8 +194,7 @@ there, we still show it but mark it "not verified," so nobody mistakes an
 invented quote for a confirmed one.
 
 **Q: Why show unverified quotes at all instead of just deleting them?**
-A: Because "not verified" doesn't always mean "fake" — sometimes the AI paraphrased slightly instead of word-for-word quoting. Hiding it would look
-like the app is covering something up. Showing it, clearly labeled, is more
+A: Because "not verified" doesn't always mean "fake" — sometimes the AI paraphrased slightly instead of word-for-word quoting. Hiding it would look like the app is covering something up. Showing it, clearly labeled, is more
 honest and still useful.
 
 **Q: Does this slow down the AI's answer?**
