@@ -17,7 +17,17 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_DIR = os.path.join(BASE_DIR, "database")
 DB_PATH = os.path.join(DB_DIR, "researchlens.db")
 
-os.makedirs(DB_DIR, exist_ok=True)
+# Sprint 5 testing: the automated test suite (tests/) needs every test run to start
+# from a fresh, empty, disposable database rather than touching whatever's in
+# database/researchlens.db - that file might be someone's real local data, mid-demo-
+# prep. tests/_dbtest.py sets this environment variable to a throwaway temp-file path
+# BEFORE importing app.py, so every service in this app transparently reads/writes
+# that temp database instead for the lifetime of the test run. Unset (the normal case,
+# running `python app.py`), this falls back to the real path above exactly as before -
+# nothing changes for the app itself.
+DB_PATH = os.environ.get("RESEARCHLENS_DB_PATH") or DB_PATH
+
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 engine = create_engine(f"sqlite:///{DB_PATH}", echo=False, connect_args={"check_same_thread": False})
 # expire_on_commit=False: every route in this app follows the same pattern - open a
