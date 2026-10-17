@@ -22,8 +22,7 @@ That's a different shape of problem from Synthesis: it needs to (1) use the **wh
 ## 3. How we decided to build it (the design decisions)
 
 **Decision 1 — Always answer from every saved paper, not a chosen subset.**
-Synthesis is deliberate: "compare exactly these papers." Ask the Literature
-is exploratory: the user doesn't want to re-tick checkboxes before every
+Synthesis is deliberate: "compare exactly these papers." Ask the Literature is exploratory: the user doesn't want to re-tick checkboxes before every
 single question. So we made a conscious choice that this feature always
 pulls in every paper currently saved to the project, automatically.
 
