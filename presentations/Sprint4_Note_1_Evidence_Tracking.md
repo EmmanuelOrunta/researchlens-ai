@@ -171,8 +171,7 @@ Tracking slide.
 
 ## 6. Why this works well for our project
 
-- It directly supports our project's whole purpose: helping someone do a **trustworthy** literature review, not just a fast one. A summary nobody
-  can verify isn't actually useful for academic work.
+- It directly supports our project's whole purpose: helping someone do a **trustworthy** literature review, not just a fast one. A summary nobody can verify isn't actually useful for academic work.
 - It's honest by design — we never hide an unverified quote, we just label
   it. That's a deliberate ethical choice: looking "too polished" by hiding
   uncertainty would be worse than showing it plainly.
