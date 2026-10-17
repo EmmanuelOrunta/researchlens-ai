@@ -6,8 +6,7 @@
 
 ## 1. What this feature actually is, in one sentence
 
-You pick two or more papers you've saved, and the AI writes one connected piece of writing that compares and combines them — not six separate
-summaries stapled together, but a single flowing discussion, the way a real
+You pick two or more papers you've saved, and the AI writes one connected piece of writing that compares and combines them — not six separate summaries stapled together, but a single flowing discussion, the way a real
 literature review's "Synthesis" section reads.
 
 ---
