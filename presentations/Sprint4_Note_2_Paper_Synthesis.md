@@ -12,8 +12,7 @@ You pick two or more papers you've saved, and the AI writes one connected piece 
 
 ## 2. The problem we were solving (the "why")
 
-Our app already had a way to summarize **one paper at a time**. But real
-literature reviews don't work paper-by-paper — the valuable part is
+Our app already had a way to summarize **one paper at a time**. But real literature reviews don't work paper-by-paper — the valuable part is
 comparing papers against each other: where do they agree, where do they
 disagree, what's missing across all of them together. Doing that by hand
 means reading five papers, then manually writing paragraphs that reference
