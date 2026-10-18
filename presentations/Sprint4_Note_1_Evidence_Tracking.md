@@ -1,7 +1,6 @@
 # Evidence Tracking — Sprint 4 Defense Notes
 
-*A plain-English guide for the team. No coding background needed — if you can
-read a sentence, you can follow this.*
+*A plain-English guide for the team. No coding background needed — if you can read a sentence, you can follow this.*
 
 ---
 
