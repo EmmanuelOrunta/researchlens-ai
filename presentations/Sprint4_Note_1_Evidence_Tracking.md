@@ -7,8 +7,7 @@ read a sentence, you can follow this.*
 
 ## 1. What this feature actually is, in one sentence
 
-Every time our AI writes an answer, it also has to show its "receipt" — the exact sentence, from the exact paper, that it got that answer from — and the
-app double-checks that receipt is real before showing it to you.
+Every time our AI writes an answer, it also has to show its "receipt" — the exact sentence, from the exact paper, that it got that answer from — and the app double-checks that receipt is real before showing it to you.
 
 Think of it like a student handing in an essay with every claim footnoted,
 except the footnotes are checked by someone else before the essay is accepted.
