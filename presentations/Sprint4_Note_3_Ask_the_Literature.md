@@ -24,8 +24,7 @@ That's a different shape of problem from Synthesis: it needs to (1) use the **wh
 **Decision 1 — Always answer from every saved paper, not a chosen subset.**
 Synthesis is deliberate: "compare exactly these papers." Ask the Literature is exploratory: the user doesn't want to re-tick checkboxes before every single question. So we made a conscious choice that this feature always pulls in every paper currently saved to the project, automatically.
 
-**Decision 2 — Store the conversation as one row per message, not one blob of text.** We could have saved an entire conversation as one long string that keeps getting appended to. Instead, every single question and every single answer gets its own row in the database, in order. This is the
-same pattern a real chat app uses, and it's what makes two more decisions
+**Decision 2 — Store the conversation as one row per message, not one blob of text.** We could have saved an entire conversation as one long string that keeps getting appended to. Instead, every single question and every single answer gets its own row in the database, in order. This is the same pattern a real chat app uses, and it's what makes two more decisions
 below possible at all.
 
 **Decision 3 — Save the user's question immediately, before waiting for the
