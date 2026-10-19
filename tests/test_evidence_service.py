@@ -67,6 +67,28 @@ class ExtractEvidenceBlockTests(unittest.TestCase):
         self.assertEqual(clean_text, "Visible answer.")
         self.assertEqual(entries, [(2, "still parsed")])
 
+    def test_a_malformed_line_inside_the_block_is_skipped_not_fatal(self):
+        # The model occasionally writes a line that doesn't match "N: \"quote\"" -
+        # e.g. forgets the quote marks, or adds a stray comment line. One bad line
+        # should never take down the whole evidence block - only that line is
+        # dropped, every well-formed line around it still parses.
+        raw = (
+            "Answer.\n\n<<<EVIDENCE\n"
+            '1: "a well-formed quote"\n'
+            "this line has no quote marks and no number\n"
+            '3: "another well-formed quote"\n'
+            "EVIDENCE>>>"
+        )
+        clean_text, entries = es.extract_evidence_block(raw)
+        self.assertEqual(entries, [(1, "a well-formed quote"), (3, "another well-formed quote")])
+
+    def test_an_overlong_quote_is_truncated_not_rejected(self):
+        long_quote = "x" * 900
+        raw = f'Answer.\n\n<<<EVIDENCE\n1: "{long_quote}"\nEVIDENCE>>>'
+        clean_text, entries = es.extract_evidence_block(raw)
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(len(entries[0][1]), es.MAX_EVIDENCE_QUOTE_CHARS)
+
 
 class BuildMultiPaperEvidenceTests(unittest.TestCase):
 
@@ -123,6 +145,80 @@ class CitationLabelTests(unittest.TestCase):
 
     def test_missing_year_omits_the_parentheses(self):
         self.assertEqual(es.format_citation_label("Jane Smith", None), "Smith")
+
+    def test_no_authors_at_all_falls_back_to_unnamed_source(self):
+        self.assertEqual(es.format_citation_label(None, 2024), "Unnamed source (2024)")
+        self.assertEqual(es.format_citation_label("", None), "Unnamed source")
+
+    def test_stray_commas_and_blank_names_are_ignored(self):
+        # Real paper.authors data occasionally has trailing/stray commas from the
+        # source API - this shouldn't produce a label with an empty "surname".
+        self.assertEqual(es.format_citation_label("Jane Smith, , Alex Chen,", 2024), "Smith and Chen (2024)")
+
+
+class BuildParagraphEvidenceTests(unittest.TestCase):
+    """build_paragraph_evidence() is the SINGLE-paper half of Evidence Tracking -
+    used by stream_summarize_paper() for the six-paragraph AI Summary, keyed by
+    paragraph number (1-6) rather than by paper number. Not covered by the
+    multi-paper tests above at all, so worth its own class."""
+
+    def setUp(self):
+        self.source_text = "The study surveyed 400 participants and found a positive effect on outcomes."
+
+    def test_verified_and_unverified_paragraphs_are_both_kept(self):
+        raw = (
+            "Six paragraphs of summary text go here.\n\n"
+            "<<<EVIDENCE\n"
+            '1: "surveyed 400 participants"\n'
+            '2: "a claim the source text never actually makes"\n'
+            "EVIDENCE>>>"
+        )
+        clean_text, evidence_by_paragraph = es.build_paragraph_evidence(raw, self.source_text)
+        self.assertTrue(evidence_by_paragraph[1]["verified"])
+        self.assertFalse(evidence_by_paragraph[2]["verified"])
+
+    def test_a_paragraph_the_model_skipped_has_no_entry_rather_than_a_broken_one(self):
+        raw = 'Summary.\n\n<<<EVIDENCE\n1: "surveyed 400 participants"\nEVIDENCE>>>'
+        clean_text, evidence_by_paragraph = es.build_paragraph_evidence(raw, self.source_text)
+        self.assertIn(1, evidence_by_paragraph)
+        self.assertNotIn(2, evidence_by_paragraph)
+        self.assertNotIn(3, evidence_by_paragraph)
+
+    def test_paragraph_zero_is_invalid_and_skipped(self):
+        raw = 'Summary.\n\n<<<EVIDENCE\n0: "should never happen but must not crash"\nEVIDENCE>>>'
+        clean_text, evidence_by_paragraph = es.build_paragraph_evidence(raw, self.source_text)
+        self.assertEqual(evidence_by_paragraph, {})
+
+    def test_duplicate_paragraph_number_keeps_only_the_first(self):
+        raw = (
+            "Summary.\n\n<<<EVIDENCE\n"
+            '3: "surveyed 400 participants"\n'
+            '3: "a different quote for the same paragraph"\n'
+            "EVIDENCE>>>"
+        )
+        clean_text, evidence_by_paragraph = es.build_paragraph_evidence(raw, self.source_text)
+        self.assertEqual(len(evidence_by_paragraph), 1)
+        self.assertEqual(evidence_by_paragraph[3]["quote"], "surveyed 400 participants")
+
+
+class AttachPaperTitlesTests(unittest.TestCase):
+    """attach_paper_titles() is what lets a template link an evidence chip straight
+    to its source paper. The important case to get right: a cited paper that's no
+    longer in the project (removed since the answer was generated) shouldn't ever
+    crash the page or silently drop the citation - it should degrade to no link."""
+
+    def test_known_paper_gets_its_title_attached(self):
+        evidence = [{"paper_id": 1, "label": "Smith (2023)", "quote": "a quote", "verified": True}]
+        papers_by_id = {1: type("P", (), {"title": "The Real Paper Title"})()}
+        enriched = es.attach_paper_titles(evidence, papers_by_id)
+        self.assertEqual(enriched[0]["title"], "The Real Paper Title")
+
+    def test_a_paper_removed_from_the_project_degrades_to_no_title_not_a_crash(self):
+        evidence = [{"paper_id": 99, "label": "Smith (2023)", "quote": "a quote", "verified": True}]
+        enriched = es.attach_paper_titles(evidence, papers_by_id={})
+        self.assertIsNone(enriched[0]["title"])
+        # Everything else about the citation is still intact - it degrades, it doesn't vanish.
+        self.assertEqual(enriched[0]["quote"], "a quote")
 
 
 if __name__ == "__main__":
