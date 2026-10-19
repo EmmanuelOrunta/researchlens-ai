@@ -25,8 +25,7 @@ Our app's core features — searching for papers, summarizing them with AI,
 comparing several papers, chatting with an AI about your saved library — all
 depend on things outside our control working at the exact moment we demo
 them: the presentation room's WiFi, Semantic Scholar/OpenAlex being
-reachable, and OpenAI's API actually responding. Any one of those failing
-mid-demo, in front of whoever's grading us, turns a five-minute walkthrough
+reachable, and OpenAI's API actually responding. Any one of those failing mid-demo, in front of whoever's grading us, turns a five-minute walkthrough
 into an awkward "it normally works, I promise."
 
 We also didn't want our demo to look thin. A brand-new account has an empty
