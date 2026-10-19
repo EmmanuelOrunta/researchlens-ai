@@ -13,6 +13,7 @@ from services.auth_service import create_user, hash_password
 from services.project_service import create_project
 from services.paper_service import (
     create_paper_from_search_result,
+    create_uploaded_paper,
     set_paper_matrix_fields,
     build_synthesis_capsule,
 )
@@ -44,6 +45,17 @@ class MatrixFieldsTests(DatabaseTestCase):
         self.assertIsNone(self.paper.matrix_methodology)
         self.assertIsNone(self.paper.matrix_sample)
         self.assertEqual(self.paper.matrix_findings, "Positive effect")
+
+    def test_re_extracting_updates_the_generated_at_timestamp(self):
+        # A manual edit and an AI re-extraction both go through this same function
+        # (see docs/Sprint4_Note_2_Paper_Synthesis.md) - either one should always
+        # move the "last set" timestamp forward, not just the very first save.
+        set_paper_matrix_fields(self.db, self.paper, "First pass", "n=50", "Some finding", "A limitation")
+        first_stamp = self.paper.matrix_generated_at
+        set_paper_matrix_fields(self.db, self.paper, "Corrected methodology", "n=50", "Some finding", "A limitation")
+        self.assertEqual(self.paper.matrix_methodology, "Corrected methodology")
+        self.assertIsNotNone(self.paper.matrix_generated_at)
+        self.assertGreaterEqual(self.paper.matrix_generated_at, first_stamp)
 
 
 class SynthesisCapsuleTests(DatabaseTestCase):
@@ -81,6 +93,23 @@ class SynthesisCapsuleTests(DatabaseTestCase):
         })
         capsule = build_synthesis_capsule(paper)
         self.assertIn("No abstract, extracted text, or matrix fields", capsule)
+
+    def test_falls_back_to_extracted_text_for_an_uploaded_pdf_with_no_abstract(self):
+        # An uploaded PDF (source="upload") has no abstract field at all - only
+        # extracted_text, from PyMuPDF. The capsule should still find something
+        # useful to send the AI rather than hitting the "nothing available" case.
+        paper = create_uploaded_paper(self.db, "An Uploaded PDF", "uploads/fake.pdf",
+                                       "The full extracted text of the uploaded PDF.")
+        capsule = build_synthesis_capsule(paper)
+        self.assertEqual(capsule, "Extracted text (excerpt): The full extracted text of the uploaded PDF.")
+
+    def test_extracted_text_is_capped_at_2000_characters(self):
+        # A big uploaded PDF shouldn't blow up the synthesis prompt - only the
+        # first 2000 characters of extracted_text are used in the capsule.
+        huge_text = "y" * 5000
+        paper = create_uploaded_paper(self.db, "A Long PDF", "uploads/long.pdf", huge_text)
+        capsule = build_synthesis_capsule(paper)
+        self.assertEqual(len(capsule), len("Extracted text (excerpt): ") + 2000)
 
 
 class SynthesisTwoPaperGuardTests(DatabaseTestCase):
