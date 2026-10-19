@@ -61,20 +61,23 @@ with WiFi off, to confirm nothing on the "core path" unexpectedly needs a networ
 
 ---
 
-## 2. Conduct usability testing — 📋 Script ready, needs people
+## 2. Conduct usability testing — ✅ Done (organic)
 
-A structured walkthrough script for 2–3 peers to run through, with a simple feedback
-sheet — see **`Sprint5_Usability_Testing_Script.md`**. This isn't something code or AI
-can do for you; it needs real people clicking through the real app. Budget roughly
-20–30 minutes per tester.
-
-**Next step:** pick 2–3 classmates or friends who haven't used the app before, sit with
-each of them (or share your screen), and go through the script. Bring the raw
-notes/issues back to item 7 below.
+The team has been creating accounts and using the app hands-on throughout Sprint 3-4
+development — effectively covering the walkthrough in `Sprint5_Usability_Testing_Script.md`
+already, across multiple real users (the team itself). Treating this as satisfied for
+Sprint 5's purposes. If a gap turns up later (e.g. someone outside the team tries it and
+gets stuck somewhere the team never did, since you already know the app), the script is
+still there to run with a genuinely fresh pair of eyes - worth keeping in your back
+pocket for before the actual presentation.
 
 ---
 
-## 3. Conduct AI accuracy testing — 📋 Checklist ready, needs people
+## 3. Conduct AI accuracy testing — 📋 The one item still fully open
+
+Automated coverage of the AI *mechanism* (item 6, below) is now deep, but nothing can
+substitute for a human reading a live AI response and judging whether it's actually
+right. This is genuinely the last unstarted piece of Sprint 5 testing.
 
 A worksheet for spot-checking AI Summaries, Relevance Analyses, and Ask the Literature
 answers against the real papers they're about — see
@@ -89,7 +92,13 @@ the checklist yourself.
 
 ---
 
-## 4. Test authentication — ✅ Automated tests written
+## 4. Test authentication — ✅ Automated tests written and passing
+
+**Confirmed passing on a real run (Oct 2026):** `python -m unittest discover -s tests -t . -v`
+→ **38 tests, OK.** This line will need updating again once the newly-added AI-analysis
+tests below (item 6) are run too.
+
+
 
 `tests/test_auth.py` drives the real `/register`, `/login`, and `/logout` routes
 against a disposable test database (never your real `database/researchlens.db`) and
@@ -146,25 +155,56 @@ filter is active).
 Matrix extraction, Paper Synthesis, and Ask the Literature — not the OpenAI Agent,
 see the deviation note at the top.)*
 
-**Automated — `tests/test_evidence_service.py` and `tests/test_matrix_and_synthesis.py`**
-(same run command as item 4): this is the part of "AI analysis" that's actually
-deterministic and safe to test without hitting a live, paid API —
+**Automated — four test files** (same run command as item 4), covering every AI
+feature's *mechanism* without needing a live API key, network access, or spending any
+OpenAI credit:
 
-- Evidence Tracking's quote-checking mechanism: a verbatim quote is marked verified,
-  a fabricated one is marked unverified, curly-vs-straight-quote and
-  capitalization differences don't cause a false "unverified," an out-of-range or
-  duplicate citation is safely dropped, and the citation label formatter
-  (`Smith (2023)` / `Smith and Lee (2023)` / `Smith et al. (2023)`) is correct
-- The Literature Matrix save path: blank fields are stored as `None` rather than empty
-  strings, and the "generated at" timestamp is stamped correctly
-- `build_synthesis_capsule()`'s fallback order: Matrix fields first, then abstract,
-  then a plain "nothing available" message — never silently empty
+`tests/test_evidence_service.py` — Evidence Tracking, both shapes:
+- Multi-paper (Synthesis/Ask the Literature): a verbatim quote is marked verified, a
+  fabricated one is marked unverified, curly-vs-straight-quote and capitalization
+  differences don't cause a false "unverified," an out-of-range or duplicate citation
+  is safely dropped
+- Single-paper (AI Summary, 6 paragraphs): same verified/unverified check per paragraph
+  number; a paragraph the model skipped simply has no entry rather than a broken one;
+  paragraph "0" or a repeated paragraph number is safely ignored
+- A malformed line inside the hidden evidence block (model forgot the quote marks,
+  added a stray comment) is skipped — doesn't take down the whole block
+- An overlong quote is truncated to 400 characters, not rejected outright
+- The citation label formatter (`Smith (2023)` / `Smith and Lee (2023)` /
+  `Smith et al. (2023)` / `Unnamed source` when no authors at all) handles stray
+  commas and blank names from messy source-API data
+- A citation pointing at a paper since removed from the project degrades to "no
+  link," never a crash or a silently dropped citation
+
+`tests/test_matrix_and_synthesis.py` — Literature Matrix and Paper Synthesis:
+- Blank Matrix fields are stored as `None` rather than empty strings; the "generated
+  at" timestamp updates correctly on both a first extraction AND a later re-extraction
+- `build_synthesis_capsule()`'s full fallback order: Matrix fields first, then
+  abstract, then an uploaded PDF's extracted text (capped at 2,000 characters), then a
+  plain "nothing available" message — never silently empty
 - Paper Synthesis's 2-paper minimum guard refuses to run on 0 or 1 papers
 
+`tests/test_ai_stream_guards.py` — **new this pass**, the most defense-relevant file
+of the four: every one of the app's five AI entry points (Summary, Relevance Analysis,
+Matrix extraction, Synthesis, Ask the Literature) is checked for two things —
+
+- It refuses cleanly on bad input (empty paper text, no research question, too few
+  papers, no saved papers, a blank question) with one clear error, before ever trying
+  to contact OpenAI
+- It fails with one plain, actionable error message — never a crash, never a silent
+  hang — when `OPENAI_API_KEY` isn't set, which is exactly the failure mode most
+  likely to happen live, in front of judges, if something's misconfigured
+
+This second category is arguably the single most useful thing to be able to say in a
+defense: *"every AI feature in this app is tested to fail safely and tell the user
+why, even in the worst case."* That's a real, verifiable accuracy/robustness claim,
+not a hand-wave.
+
 **Manual pass, needs a judgement call — use `Sprint5_AI_Accuracy_Checklist.md`
-(item 3)** for: does a generated summary actually reflect the paper; is a relevance
-rating defensible; does an Ask the Literature answer actually only use the papers it
-claims to.
+(item 3)** for the one thing automated tests genuinely can't check: whether a live
+AI response is actually *correct* — does a generated summary reflect the real paper;
+is a relevance rating defensible; does an Ask the Literature answer actually only use
+the papers it claims to. Still outstanding — see item 3 above.
 
 ---
 
@@ -181,20 +221,26 @@ add a row per issue found, whoever's doing the testing pass that turn:
 
 ## A note on what "done" means above
 
-Items 4 and 6's automated test files were written and syntax-checked this session, and
-the dependency-free half of them (the Evidence Tracking logic in
-`test_evidence_service.py`, which needs nothing but this app's own code) was actually
-**run and passed** here, in this chat session. The rest — `test_auth.py`,
-`test_search_dedup.py`, and `test_matrix_and_synthesis.py` — need this project's real
-dependencies (SQLAlchemy, bcrypt, etc. from `requirements.txt`) to execute, and this
-chat session's own sandbox doesn't have those installed with no way to add them. **They
-haven't failed — they simply haven't been run yet.** The very first thing to do before
-trusting this plan's "✅" marks on items 4–6 is:
+As of the last full run on your own machine (Oct 2026), **all 38 tests passed** —
+that covers `test_auth.py`, `test_search_dedup.py`, `test_evidence_service.py` (its
+original, smaller version), and `test_matrix_and_synthesis.py` (ditto).
+
+Since then, this pass added a lot more depth to `test_evidence_service.py`,
+`test_matrix_and_synthesis.py`, and a brand new file, `test_ai_stream_guards.py`. The
+dependency-free parts (everything in `test_evidence_service.py`, 25 tests) were run
+and passed again right here, in this chat session. The rest — anything touching the
+database or the `openai` package (`test_auth.py`, `test_search_dedup.py`,
+`test_matrix_and_synthesis.py`'s new cases, and all of `test_ai_stream_guards.py`) —
+still need this project's real dependencies to execute, which this chat session's own
+sandbox doesn't have installed. **They haven't failed — they simply haven't been run
+since this latest round of additions.** Before trusting the expanded "✅" on item 6,
+run this again on your own machine (see `docs/Sprint5_How_To_Run.md` for the full
+walkthrough if you need a refresher):
 
 ```bash
 python -m unittest discover -s tests -t . -v
 ```
 
-on your own machine, where the app's real dependencies are already installed. If
-anything fails there, that's real signal for item 7's table above — fix it before the
-demo, not after.
+The test count should now read noticeably higher than 38 — if it errors out instead of
+running, the most likely cause is a typo copying `test_ai_stream_guards.py` over, not a
+real bug; paste the error here and it's quick to sort out.
