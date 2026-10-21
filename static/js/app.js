@@ -527,6 +527,42 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
+  // Mobile nav drawer - below 720px wide (see the matching @media block in
+  // static/css/style.css), the sidebar leaves the page layout and becomes a slide-in
+  // drawer, reached through the hamburger button in the fixed .mobile-topbar
+  // (templates/base_app.html). All of this just flips one class, "sidebar-open", on
+  // <body> - every actual visual change (the drawer sliding in, the dimmed backdrop
+  // appearing, the hamburger icon becoming an "X", the page behind it locking from
+  // scrolling) is a CSS rule reacting to that class, scoped to that same breakpoint,
+  // so none of it does anything above 720px wide. Closes the same way the
+  // [data-dropdown] menus above do: tapping the dimmed backdrop, or Escape - plus
+  // re-tapping the same toggle button, which is what becomes the "X".
+  // A tap on a nav link inside the drawer isn't handled here at all: every link
+  // loads a brand new page (this app has no client-side routing), so the drawer
+  // simply starts closed again on whatever page loads next - nothing to reset.
+  var sidebarToggle = document.querySelector("[data-sidebar-toggle]");
+  var sidebarBackdrop = document.querySelector("[data-sidebar-backdrop]");
+
+  function setSidebarOpen(isOpen) {
+    document.body.classList.toggle("sidebar-open", isOpen);
+    if (sidebarToggle) {
+      sidebarToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      sidebarToggle.setAttribute("aria-label", isOpen ? "Close menu" : "Open menu");
+    }
+  }
+
+  if (sidebarToggle) {
+    sidebarToggle.addEventListener("click", function () {
+      setSidebarOpen(!document.body.classList.contains("sidebar-open"));
+    });
+  }
+  if (sidebarBackdrop) {
+    sidebarBackdrop.addEventListener("click", function () { setSidebarOpen(false); });
+  }
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") setSidebarOpen(false);
+  });
+
   // Generic dropdown menu - e.g. the Literature Matrix's "Export" button, whose menu
   // holds the Excel/PDF/Word download links (literature_matrix.html). A wrapper marked
   // data-dropdown holds one data-dropdown-toggle button and one data-dropdown-menu
