@@ -11,6 +11,7 @@ import os
 import re
 import math
 import json
+import time
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort, send_file, Response
 
 from services.database_service import get_session
@@ -103,6 +104,58 @@ SEARCH_PAGE_SIZE = 10                # how many merged results to show per page
 # than always running out of one source first.
 
 SOURCE_LABELS = {"semantic_scholar": "Semantic Scholar", "openalex": "OpenAlex"}
+
+# Clicking "Next page" and saving a paper (which redirects right back to this same
+# search) both land on the GET /search route again with the same query - and without
+# this cache, that meant running the exact same live Semantic Scholar + OpenAlex call
+# a second time, often less than a second after the first. Even with a personal
+# SEMANTIC_SCHOLAR_API_KEY configured, the guaranteed rate is only 1 request/second
+# (see semantic_scholar_service.py's docstring), and that one request/second is shared
+# by the whole app, not split per person - so two of these near-simultaneous, *fully
+# redundant* calls was easily enough to trip the rate limit and show the "OpenAlex
+# only" warning, even though nothing about the search itself had changed.
+#
+# This is a small in-memory cache of the raw merged results (before year-filtering or
+# sorting, both of which are cheap to redo locally), keyed by who's searching, which
+# project, and the exact query text - NOT by year filter/sort/page, so flipping a
+# filter or sort order or turning a page reuses what was already fetched instead of
+# re-querying. It only holds each query's results for SEARCH_CACHE_TTL_SECONDS, so a
+# genuinely new search for the same text a few minutes later still goes live again
+# rather than showing stale results forever. Being in-memory, it resets on every app
+# restart and isn't shared across multiple server processes - both fine for this app's
+# single-process scale, and simpler than adding a real cache service for it.
+SEARCH_CACHE_TTL_SECONDS = 120
+_search_results_cache = {}  # (user_id, project_id, query) -> {"expires_at", "results", "sources_used", "search_error"}
+
+
+def _prune_expired_search_cache():
+    now = time.time()
+    expired_keys = [key for key, entry in _search_results_cache.items() if entry["expires_at"] <= now]
+    for key in expired_keys:
+        del _search_results_cache[key]
+
+
+def _search_academic_sources_cached(user_id, project_id, query):
+    """
+    Same (merged, sources_used, error) result as _search_academic_sources(query), but
+    reused from cache - without hitting Semantic Scholar/OpenAlex again - if the same
+    person ran this exact query for this exact project within the last
+    SEARCH_CACHE_TTL_SECONDS. See the cache comment above for why this exists.
+    """
+    cache_key = (user_id, project_id, query)
+    cached = _search_results_cache.get(cache_key)
+    if cached is not None and cached["expires_at"] > time.time():
+        return cached["results"], cached["sources_used"], cached["search_error"]
+
+    results, sources_used, search_error = _search_academic_sources(query)
+    _search_results_cache[cache_key] = {
+        "expires_at": time.time() + SEARCH_CACHE_TTL_SECONDS,
+        "results": results,
+        "sources_used": sources_used,
+        "search_error": search_error,
+    }
+    _prune_expired_search_cache()
+    return results, sources_used, search_error
 
 
 def _dedupe_key(paper):
@@ -258,7 +311,9 @@ def search(project_id):
     page = request.args.get("page", 1, type=int) or 1
 
     if query:
-        all_results, sources_used, search_error = _search_academic_sources(query)
+        all_results, sources_used, search_error = _search_academic_sources_cached(
+            session["user_id"], project_id, query,
+        )
         all_results = _filter_by_year(all_results, year_from, year_to)
         all_results = _sort_results(all_results, sort)
 
