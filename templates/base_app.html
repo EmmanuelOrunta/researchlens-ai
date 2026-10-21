@@ -22,8 +22,26 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+  <!-- Mobile-only header: hidden entirely above 720px wide (see style.css), where the
+       sidebar below sits in its normal place beside the page instead of behind this
+       button. Below that width, the sidebar becomes an off-canvas drawer and this is
+       how it's reached - see static/js/app.js's [data-sidebar-toggle] handler and the
+       @media (max-width: 720px) block in static/css/style.css for how the three
+       pieces here (toggle button, brand, backdrop) actually work together. -->
+  <div class="mobile-topbar">
+    <button type="button" class="sidebar-toggle" data-sidebar-toggle
+            aria-label="Open menu" aria-expanded="false" aria-controls="app-sidebar">
+      <svg class="sidebar-toggle-icon-menu" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <svg class="sidebar-toggle-icon-close" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
+    <a href="{{ url_for('main.dashboard') }}" class="mobile-topbar-brand">
+      <span class="sidebar-brand-mark">🔬</span> ResearchLens AI
+    </a>
+  </div>
+  <div class="sidebar-backdrop" data-sidebar-backdrop></div>
+
   <div class="app-shell">
-    <aside class="sidebar">
+    <aside class="sidebar" id="app-sidebar">
       <a href="{{ url_for('main.dashboard') }}" class="sidebar-brand">
         <span class="sidebar-brand-mark">🔬</span>
         ResearchLens AI
