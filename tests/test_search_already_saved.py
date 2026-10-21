@@ -9,6 +9,17 @@
 # sources - these tests exercise that matching through the real route, with the live
 # Semantic Scholar/OpenAlex call swapped out for a fixed fake result set (same
 # approach as test_search_cache.py) so nothing here depends on a network call.
+#
+# The badge <span> is rendered for EVERY result, not just already-saved ones (plain
+# `hidden` on it otherwise) - that's deliberate, so the [data-save-to-project-form]
+# handler in app.js can reveal an already-correct badge the instant a save succeeds,
+# with no page reload (see tests/test_save_without_page_reload.py). So "is this paper
+# marked saved" has to be read as "is ITS badge missing `hidden`", not just "does the
+# word 'Saved' appear anywhere in the page" - _badge_tags() below pulls out just the
+# opening <span class="badge-saved" ...> tags, in the same order as the results, so
+# each one can be checked on its own.
+
+import re
 
 from tests._dbtest import DatabaseTestCase, register
 from services.database_service import get_session
@@ -16,6 +27,13 @@ from services.auth_service import get_user_by_email
 from services.project_service import create_project
 from services.paper_service import create_paper_from_search_result, save_paper_to_project
 import routes.papers_routes as papers_routes
+
+
+def _badge_tags(html):
+    """Every <span class="badge-saved" ...> opening tag, in document order - one per
+    search result card. Check `"hidden" in tag` on each to see if that particular
+    result's badge is actually showing."""
+    return re.findall(r'<span class="badge-saved"[^>]*>', html)
 
 
 class AlreadySavedIndicatorTests(DatabaseTestCase):
@@ -68,19 +86,29 @@ class AlreadySavedIndicatorTests(DatabaseTestCase):
         papers_routes._search_results_cache.clear()
         super().tearDown()
 
-    def test_a_paper_already_saved_to_this_project_is_marked_saved(self):
-        response = self.client.get(f"/projects/{self.project.id}/search?query=ai+in+education")
-        self.assertIn(b"Saved to Generative AI in Higher Education", response.data)
-
-    def test_a_paper_not_yet_saved_is_not_marked_saved(self):
+    def test_a_paper_already_saved_to_this_project_has_a_visible_badge(self):
         response = self.client.get(f"/projects/{self.project.id}/search?query=ai+in+education")
         page = response.data.decode()
-        # The badge text should appear exactly once - for the already-saved paper -
-        # not next to "A Totally New Paper" as well.
-        self.assertEqual(page.count("Saved to Generative AI in Higher Education"), 1)
+        self.assertIn("Saved to Generative AI in Higher Education", page)
+
+        badges = _badge_tags(page)
+        self.assertEqual(len(badges), 2)  # one per result card, saved or not
+        # The first result is the one that matches an already-saved paper (same DOI,
+        # different casing/title/source - see fake_search_academic_sources above).
+        self.assertNotIn("hidden", badges[0])
+
+    def test_a_paper_not_yet_saved_has_its_badge_hidden(self):
+        response = self.client.get(f"/projects/{self.project.id}/search?query=ai+in+education")
+        page = response.data.decode()
         self.assertIn("A Totally New Paper", page)
 
-    def test_a_second_project_without_this_paper_does_not_show_it_as_saved(self):
+        badges = _badge_tags(page)
+        self.assertEqual(len(badges), 2)
+        # The second result is "A Totally New Paper" - never saved anywhere, so its
+        # badge stays hidden until (if ever) it's saved via the page's own JS.
+        self.assertIn("hidden", badges[1])
+
+    def test_a_second_project_without_this_paper_shows_no_visible_badge(self):
         db = get_session()
         try:
             user = get_user_by_email(db, "librarian@example.com")
@@ -92,4 +120,8 @@ class AlreadySavedIndicatorTests(DatabaseTestCase):
             db.close()
 
         response = self.client.get(f"/projects/{other_project.id}/search?query=ai+in+education")
-        self.assertNotIn(b"badge-saved", response.data)
+        page = response.data.decode()
+
+        badges = _badge_tags(page)
+        self.assertEqual(len(badges), 2)
+        self.assertTrue(all("hidden" in badge for badge in badges))
