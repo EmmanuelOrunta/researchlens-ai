@@ -63,6 +63,9 @@
             </p>
           {% endif %}
           <div class="result-actions">
+            {% if paper.already_saved_to_project %}
+              <span class="badge-saved">✓ Saved to {{ project.title }}</span>
+            {% endif %}
             {% if paper.url %}
               <a href="{{ paper.url }}" target="_blank" rel="noopener" class="btn btn-secondary btn-inline">View Paper</a>
             {% endif %}
