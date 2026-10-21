@@ -1171,6 +1171,14 @@ a.project-card-link:hover {
   font-weight: 700;
   flex-shrink: 0;
 }
+/* The badge is now always in the DOM (see paper_search.html) and toggled with the
+   plain `hidden` attribute when a save succeeds without a page reload (see
+   [data-save-to-project-form] in app.js) - without this rule, `display: inline-flex`
+   above would override the browser's own default `[hidden] { display: none }` and the
+   badge would stay visible even while `hidden` is set. */
+.badge-saved[hidden] {
+  display: none;
+}
 
 .paper-projects {
   margin-top: 0.8rem;
