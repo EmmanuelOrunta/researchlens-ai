@@ -63,13 +63,14 @@
             </p>
           {% endif %}
           <div class="result-actions">
-            {% if paper.already_saved_to_project %}
-              <span class="badge-saved">✓ Saved to {{ project.title }}</span>
-            {% endif %}
+            <!-- Always rendered (not just when already_saved_to_project is true) so the
+                 data-save-to-project-form handler in app.js can reveal it in place the
+                 instant a save succeeds, with no page reload and no refetch needed. -->
+            <span class="badge-saved" data-saved-badge {{ "" if paper.already_saved_to_project else "hidden" }}>✓ Saved to {{ project.title }}</span>
             {% if paper.url %}
               <a href="{{ paper.url }}" target="_blank" rel="noopener" class="btn btn-secondary btn-inline">View Paper</a>
             {% endif %}
-            <form method="post" action="{{ url_for('papers.save_from_search', project_id=project.id) }}">
+            <form method="post" action="{{ url_for('papers.save_from_search', project_id=project.id) }}" data-save-to-project-form>
               <input type="hidden" name="external_id" value="{{ paper.external_id or '' }}">
               <input type="hidden" name="title" value="{{ paper.title }}">
               <input type="hidden" name="authors" value="{{ paper.authors or '' }}">
@@ -84,7 +85,9 @@
               <input type="hidden" name="year_to" value="{{ year_to }}">
               <input type="hidden" name="sort" value="{{ sort }}">
               <input type="hidden" name="page" value="{{ page }}">
-              <button type="submit" class="btn btn-inline">Save to Project</button>
+              <button type="submit" class="btn btn-inline">
+                {{ "Saved" if paper.already_saved_to_project else "Save to Project" }}
+              </button>
             </form>
           </div>
         </div>
