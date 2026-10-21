@@ -12,7 +12,7 @@ import re
 import math
 import json
 import time
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort, send_file, Response
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort, send_file, Response, jsonify
 
 from services.database_service import get_session
 from services.project_service import (
@@ -1201,8 +1201,20 @@ def save_from_search(project_id):
             })
 
         save_paper_to_project(db_session, project.id, paper.id)
+        project_title = project.title
     finally:
         db_session.close()
+
+    # paper_search.html's "Save to Project" form is submitted via fetch() (see
+    # [data-save-to-project-form] in app.js) specifically so saving a paper doesn't do
+    # a full-page reload and reset your scroll position back to the top of the results
+    # - that was disorienting when you'd saved a paper several pages deep in a long
+    # list. That JS sends this header, so this branch answers it with a small JSON
+    # response to react to in place, instead of the old redirect-back-to-search. Any
+    # OTHER caller of this route (no JS, or a non-browser client) still gets the
+    # original redirect-and-flash behaviour below, unchanged.
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"success": True, "project_title": project_title})
 
     flash("Paper saved to your project.", "success")
     return redirect(url_for(
