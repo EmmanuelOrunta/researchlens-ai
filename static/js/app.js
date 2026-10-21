@@ -63,6 +63,50 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
+  // "Save to Project" forms on the search results page (paper_search.html). A plain
+  // HTML form submit here used to do a full-page POST-then-redirect back to /search,
+  // which reset the scroll position to the top of the page - jarring when the paper
+  // you just saved was several pages deep in a long results list. Submitted via
+  // fetch() instead: the same save happens on the server, but the page never
+  // navigates, so wherever you were scrolled to is exactly where you stay. On
+  // success, the button is swapped for "Saved" and the already-rendered (but hidden)
+  // [data-saved-badge] next to it - see paper_search.html - is revealed in place,
+  // matching exactly what a full reload of this same page would have shown anyway.
+  document.querySelectorAll("[data-save-to-project-form]").forEach(function (form) {
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+
+      var button = form.querySelector("button[type=submit]");
+      if (button.disabled) return; // a save is already in flight, or already done
+
+      var originalLabel = button.textContent;
+      button.disabled = true;
+      button.textContent = "Saving…";
+
+      fetch(form.action, {
+        method: "POST",
+        body: new FormData(form),
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+      })
+        .then(function (response) {
+          if (!response.ok) throw new Error("Save request failed");
+          button.textContent = "Saved";
+          var badge = form.parentElement.querySelector("[data-saved-badge]");
+          if (badge) badge.hidden = false;
+        })
+        .catch(function () {
+          // Something genuinely went wrong (offline, server error) - fall back to a
+          // real form submit so the save still has a chance to go through, with the
+          // server's own flash message explaining what happened, rather than leaving
+          // the button stuck on "Saving…" with no feedback at all.
+          button.disabled = false;
+          button.textContent = originalLabel;
+          form.removeAttribute("data-save-to-project-form");
+          form.submit();
+        });
+    });
+  });
+
   // Generic show/hide toggle - clicking a button with class="toggle-target" flips
   // the `hidden` attribute on every id listed (space-separated) in
   // data-toggle-target. Used for the Notes section's "+ Add Note" compose panel and
