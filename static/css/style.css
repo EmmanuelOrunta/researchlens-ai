@@ -69,6 +69,13 @@
   --shadow-panel: 0 24px 64px rgba(24, 18, 10, 0.14);
   --shadow-hover: 0 14px 32px rgba(30, 24, 12, 0.09);
 
+  /* Height of the fixed mobile-only header bar that holds the hamburger button
+     (see .mobile-topbar below) - one variable so it and the matching top offsets
+     on .sidebar/.main-content inside the @media (max-width: 720px) block can't
+     drift out of sync. Not redefined for dark mode - it's a layout number, not a
+     color. */
+  --mobile-topbar-h: 56px;
+
   color-scheme: light;
 }
 
@@ -459,6 +466,54 @@ a.nav-item.active .nav-icon { background: var(--color-surface); }
 .btn-signout:hover { background: var(--color-hover-tint); }
 
 .main-content { flex: 1; padding: 2.5rem 3rem; max-width: 1180px; }
+
+/* ---------- Mobile nav drawer (sidebar becomes a slide-in panel below 720px) ----------
+   Three pieces, all inert/invisible above the breakpoint so desktop is completely
+   unaffected - only the @media (max-width: 720px) block further down gives them any
+   size or makes them interactive:
+     .mobile-topbar   - the fixed bar holding the hamburger button, visible whenever
+                         the drawer is closed OR open (so the same button also closes it).
+     .sidebar-toggle  - the hamburger button itself; swaps to an "X" via the
+                         body.sidebar-open class below.
+     .sidebar-backdrop - the dimmed layer behind the open drawer; tapping it (or
+                         pressing Escape, or re-tapping the toggle - see
+                         static/js/app.js's [data-sidebar-toggle] handler) closes it,
+                         the same open/close/outside-click/Escape pattern already used
+                         by the [data-dropdown] menus above.
+   The drawer's open/closed state lives as a single "sidebar-open" class on <body>, so
+   all of the actual showing/hiding below is plain CSS reacting to that one class. */
+.mobile-topbar { display: none; }
+.sidebar-backdrop { display: none; }
+
+.sidebar-toggle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.sidebar-toggle:hover { background: var(--color-hover-tint); }
+.sidebar-toggle svg { width: 19px; height: 19px; }
+.sidebar-toggle-icon-close { display: none; }
+body.sidebar-open .sidebar-toggle-icon-menu { display: none; }
+body.sidebar-open .sidebar-toggle-icon-close { display: block; }
+
+.mobile-topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 700;
+  font-size: 0.98rem;
+  text-decoration: none;
+  color: var(--color-text);
+}
+.mobile-topbar-brand .sidebar-brand-mark { width: 28px; height: 28px; font-size: 0.85rem; }
 
 /* ---------- Topbar (user info + sign out, top-right of every app page) ---------- */
 
@@ -1114,12 +1169,70 @@ a.project-card-link:hover {
 }
 
 @media (max-width: 720px) {
-  .app-shell { flex-direction: column; }
-  /* Below this width the sidebar stacks above the content instead of sitting beside
-     it, so the sticky/full-height pinning above would just wall off the screen with
-     nav - drop back to a normal block that scrolls away like everything else. */
-  .sidebar { width: 100%; position: static; height: auto; overflow-y: visible; }
-  .main-content { padding: 1.5rem; }
+  /* Below this width the sidebar leaves the flex row entirely and becomes an
+     off-canvas drawer: fixed to the viewport, translated fully off the left edge
+     by default, and slid into view only while body.sidebar-open is set (see
+     static/js/app.js's [data-sidebar-toggle] handler). Reachable via the
+     .mobile-topbar's hamburger button, which this same breakpoint turns on below. */
+  .app-shell { display: block; }
+
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: var(--mobile-topbar-h);
+    padding: 0 1rem;
+    background: var(--color-sidebar-bg);
+    border-bottom: 1px solid var(--color-border);
+    /* Stays above the drawer and its backdrop (z-index 50/45 below) so the SAME
+       hamburger button stays put and clickable to close the drawer again, instead
+       of being covered the moment it opens. */
+    z-index: 60;
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(17, 14, 23, 0.45);
+    z-index: 45;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  body.sidebar-open .sidebar-backdrop { opacity: 1; pointer-events: auto; }
+
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: min(82vw, 300px);
+    height: 100vh;
+    /* Starts below the always-visible .mobile-topbar so the drawer's own brand
+       row doesn't render underneath that fixed bar once open. */
+    padding-top: calc(var(--mobile-topbar-h) + 1rem);
+    z-index: 50;
+    box-shadow: var(--shadow-panel);
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+  }
+  body.sidebar-open .sidebar { transform: translateX(0); }
+
+  /* Scrolling the page behind an open drawer is disorienting on a phone (and lets
+     the drawer and the page scroll out of sync) - lock it while open. Scoped to
+     this breakpoint only, so resizing a desktop window never locks anything. */
+  body.sidebar-open { overflow: hidden; }
+
+  .main-content { padding: 1.5rem; padding-top: calc(var(--mobile-topbar-h) + 1.25rem); }
+
+  /* The topbar's name + email block is what was forcing the sign-out button to
+     wrap onto its own line on a phone-width screen - the dashboard heading right
+     below it already greets the user by name, so drop it here rather than shrink
+     everything until it technically fits. */
+  .topbar-user-info { display: none; }
+  .topbar-user { gap: 0.5rem; }
+  .btn-signout-topbar { padding: 0.42rem 0.7rem; font-size: 0.78rem; }
 }
 
 .detail-card-wide { grid-column: span 2; }
