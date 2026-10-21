@@ -85,6 +85,13 @@ def update_password():
             password_error = get_password_error(new_password)
             if password_error:
                 errors["new_password"] = password_error
+            # Checked against the real stored hash (not just a string compare against
+            # whatever was typed into "Current password") so this still catches it
+            # even if someone fat-fingers the current-password field - a new password
+            # is only ever accepted once it's confirmed to actually differ from what's
+            # stored, not from what was typed.
+            elif verify_password(new_password, user.password_hash):
+                errors["new_password"] = "Your new password must be different from your current password."
 
         if not confirm_new_password:
             errors["confirm_new_password"] = "Please confirm your new password."
