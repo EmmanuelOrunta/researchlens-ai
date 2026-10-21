@@ -290,6 +290,16 @@ def search(project_id):
     db_session = get_session()
     try:
         project = _get_owned_project_or_404(db_session, project_id)
+        # Fetched up front, in the same session as the project, so we can mark which
+        # search results are already in this project's library below - a DOI/title
+        # match (the same logic _dedupe_key already uses to spot the same paper
+        # showing up from both Semantic Scholar and OpenAlex), not just a raw
+        # external_id match, so a paper saved from one source is still recognised as
+        # "already saved" when the other source surfaces it in a later search.
+        already_saved_dedupe_keys = {
+            _dedupe_key({"doi": paper.doi, "title": paper.title})
+            for paper in get_saved_papers_for_project(db_session, project_id)
+        }
     finally:
         db_session.close()
 
@@ -321,7 +331,15 @@ def search(project_id):
         total_pages = max(1, math.ceil(total_count / SEARCH_PAGE_SIZE))
         page = max(1, min(page, total_pages))
         start = (page - 1) * SEARCH_PAGE_SIZE
-        results = all_results[start:start + SEARCH_PAGE_SIZE]
+        # Copy each result dict rather than tagging the cached ones in place -
+        # _search_academic_sources_cached() hands back the SAME dict objects on every
+        # cache hit, and "already saved" can change from one request to the next (the
+        # whole point of this page), so it must be computed fresh here every time, not
+        # baked into the cached value.
+        results = [
+            dict(paper, already_saved_to_project=_dedupe_key(paper) in already_saved_dedupe_keys)
+            for paper in all_results[start:start + SEARCH_PAGE_SIZE]
+        ]
 
     return render_template(
         "paper_search.html",
