@@ -27,8 +27,7 @@ Synthesis is deliberate: "compare exactly these papers." Ask the Literature is e
 **Decision 2 — Store the conversation as one row per message, not one blob of text.** We could have saved an entire conversation as one long string that keeps getting appended to. Instead, every single question and every single answer gets its own row in the database, in order. This is the same pattern a real chat app uses, and it's what makes two more decisions
 below possible at all.
 
-**Decision 3 — Save the user's question immediately, before waiting for the
-AI to answer.** If we waited until the AI finished to save anything (like
+**Decision 3 — Save the user's question immediately, before waiting for the AI to answer.** If we waited until the AI finished to save anything (like
 Paper Synthesis does), a dropped connection or a failed AI request would
 lose the user's question entirely — frustrating, since they already typed
 it. So the question is saved to the database the instant it's submitted,
