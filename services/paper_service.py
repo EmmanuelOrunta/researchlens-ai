@@ -465,40 +465,62 @@ def set_saved_paper_relevance(session, saved_paper: SavedPaper, analysis: str) -
 
 def get_or_fetch_source_text(session, paper: Paper):
     """
-    Whatever text Sprint 3's AI features (summarize_paper(), analyze_relevance()) can
-    actually read for this paper - preferring what's already stored, only reaching out
-    to the network as a last resort:
+    Whatever text Sprint 3's AI features (summarize_paper(), analyze_relevance(),
+    stream_extract_matrix_fields()) can actually read for this paper - preferring the
+    FULL paper whenever it's genuinely available, not just its abstract:
 
-      1. paper.abstract, if the source API provided one
-      2. paper.extracted_text, if this was a direct upload (or already fetched below,
-         on a previous call - so this only ever downloads a given paper's PDF once)
-      3. otherwise, if the source API told us this paper has an open-access copy
+      1. paper.extracted_text, if already stored - a direct upload, or a previous
+         call here that already downloaded and cached this paper's open-access copy
+         (so a given paper's PDF is only ever downloaded once, no matter how many
+         different AI features are used on it afterwards).
+      2. otherwise, if the source API told us this paper has an open-access copy
          (paper.open_access_pdf_url - see semantic_scholar_service.py and
          openalex_service.py), download and extract it via
-         pdf_service.fetch_and_extract_text_from_url()
+         pdf_service.fetch_and_extract_text_from_url(), cache the result onto
+         paper.extracted_text, and use that.
+      3. otherwise - there's no extracted text yet, and either there's no
+         open-access link or fetching/reading it genuinely didn't work out - fall
+         back to paper.abstract, if the source API provided one.
+
+    This used to check paper.abstract FIRST. That meant a search-result paper
+    effectively ALWAYS used just its abstract for every AI feature, even on the
+    fairly common papers where the source API also pointed at a free, full-text
+    copy - the open-access fetch below existed, but could never actually run, since
+    almost every search result has at least a one-paragraph abstract. Reordered so
+    the full paper is read whenever it genuinely can be, and the abstract is only
+    ever the fallback for a paywalled paper with no open-access copy, or one whose
+    PDF couldn't be downloaded or didn't contain extractable text - never the
+    default. See openai_service.py's MAX_INPUT_CHARS for how much of a long paper's
+    full text actually reaches the AI once this returns it (a large PDF is still
+    capped there, the same way it always was for abstracts).
 
     Returns (text, error) - exactly one is set. text is never an empty string (that's
     treated as an error case too), so callers can rely on `if text:`.
     """
-    if paper.abstract:
-        return paper.abstract, None
     if paper.extracted_text:
         return paper.extracted_text, None
 
-    if not paper.open_access_pdf_url:
-        return None, (
-            "This paper has no abstract, and its source didn't provide an "
-            "open-access PDF to read instead."
-        )
-
-    text, fetch_error = fetch_and_extract_text_from_url(paper.open_access_pdf_url)
-    if fetch_error:
+    if paper.open_access_pdf_url:
+        text, fetch_error = fetch_and_extract_text_from_url(paper.open_access_pdf_url)
+        if text:
+            paper.extracted_text = text
+            session.commit()
+            session.refresh(paper)
+            return text, None
+        # Downloading or reading the open-access copy didn't pan out (offline host,
+        # a scanned image-only PDF, etc.) - that's not a reason to fail the whole
+        # analysis if there's still a perfectly good abstract to fall back to.
+        if paper.abstract:
+            return paper.abstract, None
         return None, fetch_error
 
-    paper.extracted_text = text
-    session.commit()
-    session.refresh(paper)
-    return text, None
+    if paper.abstract:
+        return paper.abstract, None
+
+    return None, (
+        "This paper has no abstract, and its source didn't provide an "
+        "open-access PDF to read instead."
+    )
 
 
 def count_summarized_papers_for_user(session, user_id: int) -> int:
