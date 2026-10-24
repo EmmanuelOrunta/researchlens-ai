@@ -111,21 +111,41 @@ SOURCE_LABELS = {"semantic_scholar": "Semantic Scholar", "openalex": "OpenAlex"}
 # a second time, often less than a second after the first. Even with a personal
 # SEMANTIC_SCHOLAR_API_KEY configured, the guaranteed rate is only 1 request/second
 # (see semantic_scholar_service.py's docstring), and that one request/second is shared
-# by the whole app, not split per person - so two of these near-simultaneous, *fully
-# redundant* calls was easily enough to trip the rate limit and show the "OpenAlex
-# only" warning, even though nothing about the search itself had changed.
+# by the whole app - by every project AND every person using it, not split up between
+# them - so two of these near-simultaneous, *fully redundant* calls was easily enough
+# to trip the rate limit and show the "OpenAlex only" warning, even though nothing
+# about the search itself had changed.
 #
 # This is a small in-memory cache of the raw merged results (before year-filtering or
-# sorting, both of which are cheap to redo locally), keyed by who's searching, which
-# project, and the exact query text - NOT by year filter/sort/page, so flipping a
-# filter or sort order or turning a page reuses what was already fetched instead of
-# re-querying. It only holds each query's results for SEARCH_CACHE_TTL_SECONDS, so a
-# genuinely new search for the same text a few minutes later still goes live again
-# rather than showing stale results forever. Being in-memory, it resets on every app
-# restart and isn't shared across multiple server processes - both fine for this app's
-# single-process scale, and simpler than adding a real cache service for it.
+# sorting, both of which are cheap to redo locally), keyed ONLY by the normalised
+# query text - deliberately NOT by who's searching or which project, because the
+# academic-search results themselves don't depend on either of those (a search for
+# "generative AI" returns the same papers no matter who runs it or which project
+# they're about to save one into), while the real limit being worked around here is
+# shared across all of them anyway. Earlier this cache WAS scoped per-project, which
+# missed exactly this case: searching the same text in Project A and then Project B a
+# few seconds later is two genuinely different cache keys under that scheme, so it
+# re-fetched live both times and could still trip the limit - even though it's the
+# exact same search. Scoping by query text alone fixes that: the second project reuses
+# what the first one already fetched, the same way turning a page or saving a paper
+# already did.
+#
+# NOT keyed by year filter/sort/page either, so flipping a filter or sort order or
+# turning a page also reuses what was already fetched instead of re-querying. It only
+# holds each query's results for SEARCH_CACHE_TTL_SECONDS, so a genuinely new search
+# for the same text a few minutes later still goes live again rather than showing
+# stale results forever. Being in-memory, it resets on every app restart and isn't
+# shared across multiple server processes - both fine for this app's single-process
+# scale, and simpler than adding a real cache service for it.
 SEARCH_CACHE_TTL_SECONDS = 120
-_search_results_cache = {}  # (user_id, project_id, query) -> {"expires_at", "results", "sources_used", "search_error"}
+_search_results_cache = {}  # normalized_query -> {"expires_at", "results", "sources_used", "search_error"}
+
+
+def _normalize_search_cache_key(query):
+    # Doesn't change what's actually sent to Semantic Scholar/OpenAlex (that still
+    # uses the query exactly as typed) - just means "generative AI" and "Generative
+    # ai " hit the same cache entry instead of each triggering their own live call.
+    return query.strip().lower()
 
 
 def _prune_expired_search_cache():
@@ -135,14 +155,15 @@ def _prune_expired_search_cache():
         del _search_results_cache[key]
 
 
-def _search_academic_sources_cached(user_id, project_id, query):
+def _search_academic_sources_cached(query):
     """
     Same (merged, sources_used, error) result as _search_academic_sources(query), but
-    reused from cache - without hitting Semantic Scholar/OpenAlex again - if the same
-    person ran this exact query for this exact project within the last
-    SEARCH_CACHE_TTL_SECONDS. See the cache comment above for why this exists.
+    reused from cache - without hitting Semantic Scholar/OpenAlex again - if ANYONE ran
+    this same search (any project, any person) within the last
+    SEARCH_CACHE_TTL_SECONDS. See the cache comment above for why this is shared that
+    broadly rather than scoped to one project or person.
     """
-    cache_key = (user_id, project_id, query)
+    cache_key = _normalize_search_cache_key(query)
     cached = _search_results_cache.get(cache_key)
     if cached is not None and cached["expires_at"] > time.time():
         return cached["results"], cached["sources_used"], cached["search_error"]
@@ -321,9 +342,7 @@ def search(project_id):
     page = request.args.get("page", 1, type=int) or 1
 
     if query:
-        all_results, sources_used, search_error = _search_academic_sources_cached(
-            session["user_id"], project_id, query,
-        )
+        all_results, sources_used, search_error = _search_academic_sources_cached(query)
         all_results = _filter_by_year(all_results, year_from, year_to)
         all_results = _sort_results(all_results, sort)
 
