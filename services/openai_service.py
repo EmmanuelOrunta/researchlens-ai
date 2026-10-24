@@ -21,12 +21,19 @@ from services import evidence_service
 # in this one place rather than hunting through every call site.
 MODEL = "gpt-5.6-luna"
 
-# Keeps a giant uploaded PDF's extracted text (up to 200,000 chars - see
-# pdf_service.py's MAX_EXTRACTED_CHARS) from turning one summarization call into a
-# huge, slow, and needlessly expensive request. This many characters is already
-# several times a typical paper's abstract + introduction, which is plenty for a
-# summary or a relevance judgement.
-MAX_INPUT_CHARS = 12_000
+# Keeps a giant PDF's extracted text (up to 200,000 chars - see pdf_service.py's
+# MAX_EXTRACTED_CHARS) from turning one summarization call into a huge, slow, and
+# needlessly expensive request - while still being generous enough to cover a full
+# paper, not just its abstract. paper_service.py's get_or_fetch_source_text() now
+# prefers a paper's full extracted text (uploaded, or downloaded from an
+# open-access link) over its abstract whenever one is actually available, so this
+# needs real headroom: ~45,000 characters is roughly a complete typical research
+# paper (abstract through conclusion) for most papers in this app's domain, not just
+# the first couple of pages. Raised from an earlier, abstract-sized 12,000 when that
+# full-text preference was added - if OpenAI cost/latency for AI Summary, Relevance
+# Analysis, or Literature Matrix extraction matters more than coverage for your use,
+# this is the one place to dial it back down.
+MAX_INPUT_CHARS = 45_000
 
 
 def is_configured() -> bool:
