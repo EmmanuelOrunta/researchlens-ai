@@ -63,13 +63,31 @@ around.
 - **Structured comparison matrix.** A Methodology / Sample / Findings / Limitations
   table across a project's papers, AI-extractable row by row or edited by hand,
   exportable to Excel, PDF, and Word from the same data.
-- **Dual-source search.** Semantic Scholar and OpenAlex queried together and
-  de-duplicated by DOI, plus direct PDF upload with text extraction.
+- **Dual-source search**, cached per user/project/query. Semantic Scholar and OpenAlex
+  queried together and de-duplicated by DOI, plus direct PDF upload with text
+  extraction. Results already shown in a project are cached so re-running the same
+  search — from pagination or after saving a paper — doesn't burn another live API
+  call (and another chance of a Semantic Scholar rate-limit) for no reason.
+- **"Saved to project" indicator.** A search result already in the current project's
+  library is badged in place, and clicking "Save to Project" updates that badge
+  instantly via a background request — the results list never reloads or loses your
+  scroll position.
+- **Full text over abstract, when it's available.** Every AI feature prefers a paper's
+  full extracted text (uploaded directly, or auto-fetched from an open-access PDF link
+  Semantic Scholar/OpenAlex often provide) and only falls back to the abstract when no
+  full text can be found.
 - **Hand-built frontend.** No React, no Bootstrap — Jinja2 templates, vanilla JS, and a
   single CSS file implementing a full light/dark design system with CSS custom
-  properties.
+  properties, responsive down to mobile widths.
 - **Session auth and per-user access control** on every project/paper query, not just
   at the login gate.
+- **An offline-safe demo account.** One command seeds a fully-populated demo project
+  with hand-written (not live-generated) AI content, so the whole app can be walked
+  through — dashboard, matrix, synthesis, chat — without a network connection or an
+  OpenAI key.
+- **87 automated tests** across 10 files, covering auth, search de-duplication and
+  caching, the evidence-verification mechanism, the Literature Matrix and synthesis,
+  settings, and every AI entry point's failure-handling path.
 
 ## Tech stack
 
@@ -78,11 +96,12 @@ around.
 | Backend | Python, Flask (blueprints: auth / main / papers / settings) |
 | Database | SQLite via SQLAlchemy ORM, with a lightweight in-code column-migration helper |
 | AI | OpenAI Responses API, streamed token-by-token to the browser |
-| Literature search | Semantic Scholar API, OpenAlex API |
-| PDF handling | PyMuPDF (text extraction), reportlab (PDF export) |
+| Literature search | Semantic Scholar API, OpenAlex API, with an in-memory per-(user, project, query) result cache |
+| PDF handling | PyMuPDF (text extraction, from an upload or an auto-fetched open-access link), reportlab (PDF export) |
 | Document export | openpyxl (Excel), python-docx (Word) |
 | Auth | bcrypt password hashing, signed session cookies |
-| Frontend | Jinja2, vanilla JavaScript (`fetch()` streaming), hand-written CSS (no framework) |
+| Frontend | Jinja2, vanilla JavaScript (`fetch()` streaming + AJAX form submission), hand-written CSS (no framework) |
+| Testing | Python's built-in `unittest`, 87 tests across 10 files, each running against a disposable temp SQLite database |
 
 ## Architecture
 
@@ -112,7 +131,7 @@ another account's data.
 <summary><strong>Full project structure</strong> (click to expand)</summary>
 
 ```
-researchlens-ai-flask/
+researchlens-ai/
 ├── app.py                        ← entry point: run this file. Creates the Flask app,
 │                                    registers all four blueprints, sets up the
 │                                    `initials` template filter and the `current_user`
@@ -222,7 +241,21 @@ researchlens-ai-flask/
 │                                     Ask the Literature chat client (ask, edit,
 │                                     resend, copy), and rendering each feature's
 │                                     evidence chips as they stream in
-├── docs/screenshots/             ← the screenshots used in this README
+├── tests/                        ← 87 unittest-based tests across 10 files, each run
+│                                     against a disposable temp database (tests/_dbtest.py),
+│                                     never database/researchlens.db. See Testing below.
+├── scripts/
+│   └── seed_demo_data.py          ← seeds one offline-safe, fully-populated demo
+│                                     account and project (hand-written AI content, no
+│                                     network calls needed) — safe to re-run any time
+├── docs/
+│   ├── screenshots/                ← the screenshots used in this README
+│   ├── Final_Demo_Script.md
+│   ├── Final_Manual_Testing_Checklist.md
+│   ├── Sprint5_AI_Accuracy_Checklist.md
+│   ├── Sprint5_How_To_Run.md
+│   ├── Sprint5_Plan.md
+│   └── Sprint5_Usability_Testing_Script.md
 ├── database/                     ← researchlens.db (SQLite file), created here on first run
 ├── uploads/                      ← uploaded PDFs, saved under randomly generated
 │                                     filenames so two users' files never collide
@@ -256,12 +289,19 @@ researchlens-ai-flask/
 
 - Combined paper search across **Semantic Scholar** and **OpenAlex**, two free,
   official scholarly APIs, merged and de-duplicated by DOI (falling back to title) so
-  the same paper never appears twice.
+  the same paper never appears twice. Results are cached per (user, project, query),
+  so paging through results or saving a paper never re-triggers a redundant live call.
+- A **"Saved to project" badge** on any search result already in the current
+  project's library, updated in place — via a background `fetch()`, not a page
+  reload — the instant you click Save, so your place in a long results list is never
+  lost.
 - Year-range filtering and sort-by (relevance / newest / oldest), with server-side
   pagination.
 - Full project CRUD (create, edit, delete) and a save/remove workflow linking papers
   to a project's library.
-- Direct PDF upload with text extraction via PyMuPDF.
+- Direct PDF upload with text extraction via PyMuPDF, or an automatic fetch-and-extract
+  from an open-access PDF link Semantic Scholar/OpenAlex often expose for a search
+  result, used in preference to the abstract whenever full text is available.
 - The complete custom Flask + Jinja2 + hand-written CSS interface (Fraunces for
   headings, Inter for body text) — no frontend framework.
 
@@ -334,6 +374,36 @@ researchlens-ai-flask/
 
 </details>
 
+## Testing
+
+```bash
+python -m unittest discover tests
+```
+
+87 tests across 10 files, built on Python's standard-library `unittest` (no extra
+dependency needed — nothing in `requirements.txt` is testing-specific). Every test
+runs against a brand-new, disposable temp SQLite database created by
+`tests/_dbtest.py`, never the real `database/researchlens.db`, and tables are wiped
+and recreated before each individual test so tests never leak state into one another.
+Anywhere a test needs a live external call — Semantic Scholar/OpenAlex search, or
+fetching an open-access PDF — that call is swapped out for a fixed fake response, so
+the whole suite runs with no network access and no API keys required.
+
+What's covered, roughly by file: registration/login/logout and anti-enumeration
+(`test_auth.py`), search de-duplication (`test_search_dedup.py`) and the result cache
+(`test_search_cache.py`), the "already saved" badge and its AJAX save path
+(`test_search_already_saved.py`, `test_save_without_page_reload.py`), the
+evidence-verification mechanism at the centre of the app (`test_evidence_service.py`,
+25 tests), the Literature Matrix and Paper Synthesis (`test_matrix_and_synthesis.py`),
+full-text-over-abstract source selection (`test_source_text_priority.py`), every AI
+feature's offline/no-API-key failure path (`test_ai_stream_guards.py`), and the
+Settings page (`test_settings.py`).
+
+This automated suite is complemented by a manual testing pass
+(`docs/Final_Manual_Testing_Checklist.md`) covering full click-through journeys and
+cross-account access checks the automated tests don't drive through the browser
+itself.
+
 ## Getting started
 
 ### 1. Prerequisites
@@ -346,8 +416,8 @@ researchlens-ai-flask/
 ### 2. Clone and set up a virtual environment
 
 ```bash
-git clone <this-repo-url>
-cd researchlens-ai-flask
+git clone https://github.com/EmmanuelOrunta/researchlens-ai.git
+cd researchlens-ai
 python -m venv venv
 ```
 
@@ -424,22 +494,45 @@ To stop the app: `Ctrl+C` in the terminal.
 
 </details>
 
+### 6. Try the offline demo (optional)
+
+No OpenAI key, and no internet connection at all, needed for this one:
+
+```bash
+python scripts/seed_demo_data.py
+```
+
+Seeds one fully-populated demo account and project directly into
+`database/researchlens.db` — summaries, a filled-in Literature Matrix, a synthesis, and
+an Ask the Literature conversation, all written out by hand in the script rather than
+generated live, so the whole click-through (dashboard → project → paper detail →
+matrix → synthesis → chat) works with zero network calls. Safe to re-run any time; it
+replaces the demo project rather than duplicating it. Log in with the demo account's
+credentials printed by the script when it finishes.
+
 ## Roadmap
 
 - **A minimal tool-using OpenAI Agent** as a step beyond the prompt-and-stream pattern
-  every current AI feature uses.
-- **A prepared offline-safe demo mode**, so the app's core flows can be shown without a
-  live OpenAI/Semantic Scholar/OpenAlex connection.
-- **A broader usability and AI-accuracy testing pass**, plus end-to-end testing of
-  authentication and search, and general bug fixes.
+  every current AI feature uses — deliberately descoped from the current build in
+  favor of hardening the evidence-tracking, synthesis and chat features already
+  shipped, rather than adding an under-tested feature late.
+- **A larger, externally recruited usability and AI-accuracy evaluation**, beyond the
+  team's own testing and the automated suite, to validate the trust-related findings
+  at a scale the current ten-respondent survey can't support.
+- **Embeddings-based retrieval** as an option once a saved-paper library outgrows what
+  the current deterministic, project-scoped prompting approach can comfortably handle.
 
 Research gap detection, originally planned as a separate feature, is now effectively
 covered by Paper Synthesis and Ask the Literature together — both already surface where
 the saved literature agrees, disagrees, or is thin, with citations back to exactly where
-each claim comes from.
+each claim comes from. An offline-safe demo mode and a real automated test suite, both
+originally roadmap items, are both now built — see [Getting started](#getting-started)
+and [Testing](#testing) above.
 
 ---
 
 <sub>Built as an academic capstone project, developed iteratively across five stages:
 authentication & project management, literature search, AI paper analysis, research
-intelligence (matrix/synthesis/chat), and evidence tracking & design polish.</sub>
+intelligence (matrix/synthesis/chat), and evidence tracking & design polish — followed
+by an ongoing hardening pass (search caching, saved-paper indicators, full-text-over-
+abstract sourcing, and a growing automated test suite) driven by real usage.</sub>
