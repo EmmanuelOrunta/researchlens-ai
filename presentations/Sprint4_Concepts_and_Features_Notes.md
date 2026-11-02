@@ -8,8 +8,7 @@ choices — including the trade-offs considered and the alternatives that were r
 Where useful, it also flags a question you might reasonably get asked and how to
 answer it.
 
-A companion document, `Sprint4_Code_Walkthrough_Notes.md`, walks through the actual new
-code file by file. This document stays one level up — concepts and reasoning, not line
+A companion document, `Sprint4_Code_Walkthrough_Notes.md`, walks through the actual new code file by file. This document stays one level up — concepts and reasoning, not line
 references.
 
 ---
