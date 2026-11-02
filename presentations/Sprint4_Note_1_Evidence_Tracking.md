@@ -14,8 +14,7 @@ except the footnotes are checked by someone else before the essay is accepted.
 
 ## 2. The problem we were solving (the "why")
 
-Our app uses AI (OpenAI) to summarize papers, combine several papers into one
-write-up, and answer questions about a user's saved library. The risk with
+Our app uses AI (OpenAI) to summarize papers, combine several papers into one write-up, and answer questions about a user's saved library. The risk with
 any AI like this is simple: **it can sound confident while being wrong.** It
 might say "Smith (2023) found that remote work improves productivity" when
 Smith (2023) never said that at all. This is called *hallucination* — the AI
