@@ -58,8 +58,7 @@ class LiteratureChatMessage(Base):
     evidence = Column(Text, nullable=True)       # Sprint 5 - not Sprint 4 scope
 ```
 
-One row per **turn** of the conversation (a question, or an answer) — never one row per whole conversation. This is the same shape `models/note.py` already used for notes:
-append-only, one-row-per-item, rather than a single field that gets overwritten.
+One row per **turn** of the conversation (a question, or an answer) — never one row per whole conversation. This is the same shape `models/note.py` already used for notes: append-only, one-row-per-item, rather than a single field that gets overwritten.
 `project_id` is indexed since every query against this table filters by it.
 
 ### 1.4 How the new columns/table actually get created: `_ADDED_COLUMNS`
