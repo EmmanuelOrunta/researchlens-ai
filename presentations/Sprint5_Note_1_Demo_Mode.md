@@ -27,8 +27,7 @@ depend on things outside our control working at the exact moment we demo
 them: the presentation room's WiFi, Semantic Scholar/OpenAlex being
 reachable, and OpenAI's API actually responding. Any one of those failing mid-demo, in front of whoever's grading us, turns a five-minute walkthrough into an awkward "it normally works, I promise."
 
-We also didn't want our demo to look thin. A brand-new account has an empty
-dashboard, zero saved papers, and nothing to click into — not a great first
+We also didn't want our demo to look thin. A brand-new account has an empty dashboard, zero saved papers, and nothing to click into — not a great first
 impression, and it means improvising a live search and a live AI call just
 to have something to show.
 
