@@ -24,8 +24,7 @@ from?**
 
 **Decision 1 — Require at least two papers, and say so clearly.**
 A "synthesis" of one paper isn't a synthesis at all — it's just a summary
-wearing a different name. So before anything else happens, we check: did the user pick two or more papers? If not, we stop immediately and tell them why,
-instead of quietly generating something that isn't what they asked for.
+wearing a different name. So before anything else happens, we check: did the user pick two or more papers? If not, we stop immediately and tell them why, instead of quietly generating something that isn't what they asked for.
 
 **Decision 2 — Don't just paste the full text of every paper into the AI
 prompt.** Papers can be long. Sending five full papers to the AI every time
