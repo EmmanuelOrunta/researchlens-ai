@@ -116,8 +116,7 @@ class DatabaseTestCase(unittest.TestCase):
         Base.metadata.drop_all(bind=engine)
 ```
 
-**In plain words:** this file runs first and creates one brand-new, empty,
-temporary database file on disk, then tells the rest of the app (through an environment variable, which is just a named setting the whole program can
+**In plain words:** this file runs first and creates one brand-new, empty, temporary database file on disk, then tells the rest of the app (through an environment variable, which is just a named setting the whole program can
 read) to use that temporary file instead of the real one for the rest of
 this test run. `setUp()` is a function that `unittest` automatically runs
 *before every single test* — here, it wipes and rebuilds all the empty
