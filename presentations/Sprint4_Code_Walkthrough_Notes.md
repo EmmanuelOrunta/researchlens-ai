@@ -63,8 +63,7 @@ One row per **turn** of the conversation (a question, or an answer) — never on
 
 ### 1.4 How the new columns/table actually get created: `_ADDED_COLUMNS`
 
-`services/database_service.py` has a lightweight, in-code migration mechanism (predates Sprint 4) — a list of `(table, column, DDL)` tuples checked and applied at startup if
-missing, instead of a full migrations framework like Alembic. Sprint 4's new columns
+`services/database_service.py` has a lightweight, in-code migration mechanism (predates Sprint 4) — a list of `(table, column, DDL)` tuples checked and applied at startup if missing, instead of a full migrations framework like Alembic. Sprint 4's new columns
 were added to that list; the new table is created automatically because SQLAlchemy's
 `Base.metadata.create_all()` (also called at startup) creates any table that doesn't
 exist yet for any declared model.
