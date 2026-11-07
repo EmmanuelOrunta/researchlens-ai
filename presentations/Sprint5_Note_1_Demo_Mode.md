@@ -29,8 +29,7 @@ reachable, and OpenAI's API actually responding. Any one of those failing mid-de
 
 We also didn't want our demo to look thin. A brand-new account has an empty dashboard, zero saved papers, and nothing to click into — not a great first impression, and it means improvising a live search and a live AI call just to have something to show.
 
-So we asked: **how do we guarantee a good-looking, fully clickable demo that
-doesn't depend on anything outside our own laptop working correctly?**
+So we asked: **how do we guarantee a good-looking, fully clickable demo that doesn't depend on anything outside our own laptop working correctly?**
 
 That question is what Demo Mode answers.
 
