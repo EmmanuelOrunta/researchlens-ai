@@ -1,8 +1,7 @@
 # Sprint 4 Study Notes — Concepts, Features & Thought Process
 
 **Purpose of this document:** personal study / defense-prep notes for Sprint 4 of ResearchLens AI ("Research Intelligence"). It explains *what* was built, the *concepts* underneath each piece, *how* each feature actually works end-to-end, the *technologies* used and why those specific ones, and the *reasoning* behind the design
-choices — including the trade-offs considered and the alternatives that were rejected.
-Where useful, it also flags a question you might reasonably get asked and how to
+choices — including the trade-offs considered and the alternatives that were rejected. Where useful, it also flags a question you might reasonably get asked and how to
 answer it.
 
 A companion document, `Sprint4_Code_Walkthrough_Notes.md`, walks through the actual new code file by file. This document stays one level up — concepts and reasoning, not line
