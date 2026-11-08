@@ -27,8 +27,7 @@ A "synthesis" of one paper isn't a synthesis at all — it's just a summary
 wearing a different name. So before anything else happens, we check: did the user pick two or more papers? If not, we stop immediately and tell them why, instead of quietly generating something that isn't what they asked for.
 
 **Decision 2 — Don't just paste the full text of every paper into the AI
-prompt.** Papers can be long. Sending five full papers to the AI every time would be slow, expensive, and risk going over what the AI can actually read in one go. Instead, we reduced each paper down to a short "capsule" — its
-Matrix fields if the user filled those in (Methodology, Sample, Findings,
+prompt.** Papers can be long. Sending five full papers to the AI every time would be slow, expensive, and risk going over what the AI can actually read in one go. Instead, we reduced each paper down to a short "capsule" — its Matrix fields if the user filled those in (Methodology, Sample, Findings,
 Limitations), or its abstract if not. This keeps every request fast and
 affordable while still giving the AI the substance it needs.
 
