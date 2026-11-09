@@ -15,8 +15,7 @@ Think of it like a student handing in an essay with every claim footnoted, excep
 
 Our app uses AI (OpenAI) to summarize papers, combine several papers into one write-up, and answer questions about a user's saved library. The risk with any AI like this is simple: **it can sound confident while being wrong.** It might say "Smith (2023) found that remote work improves productivity" when Smith (2023) never said that at all. This is called *hallucination* — the AI isn't lying on purpose, it's just predicting plausible-sounding text, and sometimes "plausible" and "true" don't match.
 
-For a research tool, that's a serious problem. A student doing a literature
-review can't responsibly quote something the AI invented. So we asked: **how
+For a research tool, that's a serious problem. A student doing a literature review can't responsibly quote something the AI invented. So we asked: **how
 do we let the AI write naturally, but still let the user verify every claim
 without having to re-read the whole paper themselves?**
 
