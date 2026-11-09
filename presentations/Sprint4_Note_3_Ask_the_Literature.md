@@ -59,8 +59,7 @@ def get_recent_history_for_prompt(session, project_id, before_id=None):
     return [{"role": message.role, "content": message.content} for message in messages]
 ```
 
-**In plain words:** think of every message in the chat as a numbered sticky
-note on a wall. This code says: "grab this project's sticky notes, sort them
+**In plain words:** think of every message in the chat as a numbered sticky note on a wall. This code says: "grab this project's sticky notes, sort them
 newest-first, and take only the most recent 8." Then `.reverse()` flips
 them back into the normal oldest-to-newest reading order, because that's how
 a conversation actually makes sense to read. The optional `before_id` part
