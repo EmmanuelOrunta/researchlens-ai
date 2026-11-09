@@ -29,8 +29,7 @@ Synthesis is deliberate: "compare exactly these papers." Ask the Literature is e
 **Decision 3 — Save the user's question immediately, before waiting for the AI to answer.** If we waited until the AI finished to save anything (like Paper Synthesis does), a dropped connection or a failed AI request would lose the user's question entirely — frustrating, since they already typed it. So the question is saved to the database the instant it's submitted, *before* we even start talking to the AI. The answer is saved separately,
 once it's ready.
 
-**Decision 4 — Let someone edit a question and get a fresh answer, instead of just adding a correction underneath.** If your second question was badly
-worded, the AI's answer to it (and anything you asked afterward, which may
+**Decision 4 — Let someone edit a question and get a fresh answer, instead of just adding a correction underneath.** If your second question was badly worded, the AI's answer to it (and anything you asked afterward, which may
 have leaned on that answer) is now out of date too. So "Edit" doesn't just
 add a new message — it rewinds the conversation back to right before that
 question, as if it had been typed correctly the first time.
