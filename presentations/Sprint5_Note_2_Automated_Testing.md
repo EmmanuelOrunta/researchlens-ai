@@ -116,8 +116,7 @@ class DatabaseTestCase(unittest.TestCase):
         Base.metadata.drop_all(bind=engine)
 ```
 
-**In plain words:** this file runs first and creates one brand-new, empty, temporary database file on disk, then tells the rest of the app (through an environment variable, which is just a named setting the whole program can read) to use that temporary file instead of the real one for the rest of this test run. `setUp()` is a function that `unittest` automatically runs *before every single test* — here, it wipes and rebuilds all the empty
-tables, so each test always starts from a completely clean, empty database, with no leftovers from whatever test ran just before it. `self.client` is a pretend web browser — it can "click" links and "submit" forms against our
+**In plain words:** this file runs first and creates one brand-new, empty, temporary database file on disk, then tells the rest of the app (through an environment variable, which is just a named setting the whole program can read) to use that temporary file instead of the real one for the rest of this test run. `setUp()` is a function that `unittest` automatically runs *before every single test* — here, it wipes and rebuilds all the empty tables, so each test always starts from a completely clean, empty database, with no leftovers from whatever test ran just before it. `self.client` is a pretend web browser — it can "click" links and "submit" forms against our
 real Flask app without needing an actual browser window or an actual
 running web server.
 
