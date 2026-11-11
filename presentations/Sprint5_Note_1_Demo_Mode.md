@@ -38,8 +38,7 @@ That question is what Demo Mode answers.
 ## 3. How we decided to build it (the design decisions)
 
 **Decision 1 — Write the results by hand instead of generating them live.**
-Rather than having the script actually call OpenAI to generate a summary, a synthesis, and a chat answer (which would just reintroduce the exact network/API dependency we're trying to avoid), we wrote realistic-sounding AI output ourselves, directly as plain text in the script. The demo account ends up looking indistinguishable from one that used the AI live, because
-it reuses the AI features' real database fields and real page templates —
+Rather than having the script actually call OpenAI to generate a summary, a synthesis, and a chat answer (which would just reintroduce the exact network/API dependency we're trying to avoid), we wrote realistic-sounding AI output ourselves, directly as plain text in the script. The demo account ends up looking indistinguishable from one that used the AI live, because it reuses the AI features' real database fields and real page templates —
 it's only the *generation* step that's skipped.
 
 **Decision 2 — Go through the app's own functions, not a shortcut.** The
