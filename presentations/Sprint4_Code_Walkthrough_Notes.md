@@ -83,8 +83,7 @@ def set_paper_matrix_fields(session, paper, methodology, sample, findings, limit
     return paper
 ```
 
-**What it does:** writes all four Matrix columns in one call, normalizing empty/
-whitespace-only input to `None` (so a blank cell reads as "not set" rather than an empty
+**What it does:** writes all four Matrix columns in one call, normalizing empty/whitespace-only input to `None` (so a blank cell reads as "not set" rather than an empty
 string). **Who calls it:** both the AI-extraction route (after a successful
 `stream_extract_matrix_fields()` run) and the manual-edit route
 (`edit_matrix_fields()`) — the exact same function, which is *the* mechanism behind "AI
