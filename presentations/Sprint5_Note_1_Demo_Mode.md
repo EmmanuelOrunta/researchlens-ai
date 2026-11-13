@@ -42,8 +42,7 @@ Rather than having the script actually call OpenAI to generate a summary, a synt
 it's only the *generation* step that's skipped.
 
 **Decision 2 — Go through the app's own functions, not a shortcut.** The
-script doesn't poke values directly into the database by hand. It calls the
-exact same functions the real app calls when a real user saves a paper, sets
+script doesn't poke values directly into the database by hand. It calls the exact same functions the real app calls when a real user saves a paper, sets
 a matrix field, or sends a chat message (`save_paper_to_project()`,
 `set_paper_matrix_fields()`, `add_chat_message()`, and so on). That matters
 for honesty and reliability: the demo data is guaranteed to be shaped
