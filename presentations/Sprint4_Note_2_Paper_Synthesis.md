@@ -29,8 +29,7 @@ wearing a different name. So before anything else happens, we check: did the use
 **Decision 2 — Don't just paste the full text of every paper into the AI
 prompt.** Papers can be long. Sending five full papers to the AI every time would be slow, expensive, and risk going over what the AI can actually read in one go. Instead, we reduced each paper down to a short "capsule" — its Matrix fields if the user filled those in (Methodology, Sample, Findings, Limitations), or its abstract if not. This keeps every request fast and affordable while still giving the AI the substance it needs.
 
-**Decision 3 — Tell the AI exactly what shape to write in, not just "write something."** We give the AI a structured recipe: open by naming the shared theme across the papers, then compare them directly by name, then point out
-what they all lean on in common, then critique the body of work as a whole,
+**Decision 3 — Tell the AI exactly what shape to write in, not just "write something."** We give the AI a structured recipe: open by naming the shared theme across the papers, then compare them directly by name, then point out what they all lean on in common, then critique the body of work as a whole,
 then close with what it all means. This is what keeps the output reading
 like an actual synthesis section instead of a random ramble.
 
