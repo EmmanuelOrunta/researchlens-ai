@@ -12,8 +12,7 @@ references.
 Sprint 4 took the app from analysing **one paper at a time** (Sprint 3's AI Summary and Relevance Analysis) to reasoning **across a whole saved library at once**, through three features: the **Literature Matrix** (structured comparison), **Paper Synthesis** (narrative synthesis across a chosen set of papers), and **Ask the Literature**
 (open-ended, conversational Q&A grounded in a project's whole saved library).
 
-**Why this framing matters if asked "what's the big idea of Sprint 4":** a literature
-review isn't just six one-paragraph summaries sitting next to each other — it requires
+**Why this framing matters if asked "what's the big idea of Sprint 4":** a literature review isn't just six one-paragraph summaries sitting next to each other — it requires
 *comparing* sources, *synthesizing* them into an argument, and being able to *interrogate*
 them. Sprint 3 could not do any of those three things because every one of its AI calls
 was scoped to exactly one paper. Sprint 4 is the sprint where the app's AI stopped being
