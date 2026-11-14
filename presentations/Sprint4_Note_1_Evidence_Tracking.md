@@ -26,8 +26,7 @@ That question is what Evidence Tracking answers.
 **Decision 1 — Ask the AI to show its work, in a small hidden block.**
 Instead of trying to guess afterwards which sentence the AI "meant," we
 simply told the AI, as part of its instructions: *"After you finish your
-answer, add a short list — one line per paper/paragraph you drew from, with
-a short word-for-word quote proving it."* This is far easier than the
+answer, add a short list — one line per paper/paragraph you drew from, with a short word-for-word quote proving it."* This is far easier than the
 alternative (trying to automatically match AI prose back to the source text
 after the fact), because the AI already knows what it based its answer on —
 we just have to ask it to tell us.
