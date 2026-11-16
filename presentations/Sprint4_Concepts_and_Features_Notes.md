@@ -8,8 +8,7 @@ A companion document, `Sprint4_Code_Walkthrough_Notes.md`, walks through the act
 
 ## 1. What Sprint 4 actually is, in one sentence
 
-Sprint 4 took the app from analysing **one paper at a time** (Sprint 3's AI Summary and Relevance Analysis) to reasoning **across a whole saved library at once**, through three features: the **Literature Matrix** (structured comparison), **Paper Synthesis** (narrative synthesis across a chosen set of papers), and **Ask the Literature**
-(open-ended, conversational Q&A grounded in a project's whole saved library).
+Sprint 4 took the app from analysing **one paper at a time** (Sprint 3's AI Summary and Relevance Analysis) to reasoning **across a whole saved library at once**, through three features: the **Literature Matrix** (structured comparison), **Paper Synthesis** (narrative synthesis across a chosen set of papers), and **Ask the Literature** (open-ended, conversational Q&A grounded in a project's whole saved library).
 
 **Why this framing matters if asked "what's the big idea of Sprint 4":** a literature review isn't just six one-paragraph summaries sitting next to each other — it requires
 *comparing* sources, *synthesizing* them into an argument, and being able to *interrogate*
