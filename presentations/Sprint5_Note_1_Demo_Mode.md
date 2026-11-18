@@ -41,8 +41,7 @@ That question is what Demo Mode answers.
 Rather than having the script actually call OpenAI to generate a summary, a synthesis, and a chat answer (which would just reintroduce the exact network/API dependency we're trying to avoid), we wrote realistic-sounding AI output ourselves, directly as plain text in the script. The demo account ends up looking indistinguishable from one that used the AI live, because it reuses the AI features' real database fields and real page templates — it's only the *generation* step that's skipped.
 
 **Decision 2 — Go through the app's own functions, not a shortcut.** The
-script doesn't poke values directly into the database by hand. It calls the exact same functions the real app calls when a real user saves a paper, sets a matrix field, or sends a chat messag (`save_paper_to_project()`, `set_paper_matrix_fields()`, `add_chat_message()`, and so on). That matters for honesty and reliability: the demo data is guaranteed to be shaped
-exactly like real data the app produces, so there's no chance of the demo
+script doesn't poke values directly into the database by hand. It calls the exact same functions the real app calls when a real user saves a paper, sets a matrix field, or sends a chat messag (`save_paper_to_project()`, `set_paper_matrix_fields()`, `add_chat_message()`, and so on). That matters for honesty and reliability: the demo data is guaranteed to be shaped exactly like real data the app produces, so there's no chance of the demo
 page looking different from how it'd look for a real user, or breaking
 because the script wrote something the real app's pages don't expect.
 
