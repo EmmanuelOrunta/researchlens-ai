@@ -54,8 +54,7 @@ cascades away with it), and only then build a fresh one. Running it the
 morning of presentation day always leaves exactly one clean, correct demo
 project — never a pile of leftover duplicates from an earlier rehearsal.
 
-**Decision 4 — Leave two papers deliberately unfinished.** Three of the five
-demo papers have their Literature Matrix fields already filled in; two
+**Decision 4 — Leave two papers deliberately unfinished.** Three of the five demo papers have their Literature Matrix fields already filled in; two
 (Okafor and Dubois) are left blank on purpose, exactly like a freshly-saved
 paper looks before anyone's analyzed it. That's intentional: if the
 presentation room's WiFi *does* happen to work, there's still something real
