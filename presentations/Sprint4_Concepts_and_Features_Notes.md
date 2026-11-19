@@ -17,8 +17,7 @@ was scoped to exactly one paper. Sprint 4 is the sprint where the app's AI stopp
 
 ## 2. Core concepts that show up in all three features
 
-These ideas repeat across all three features, so understanding them once pays off three
-times.
+These ideas repeat across all three features, so understanding them once pays off three times.
 
 ### 2.1 Streaming responses (the "typing" effect)
 
