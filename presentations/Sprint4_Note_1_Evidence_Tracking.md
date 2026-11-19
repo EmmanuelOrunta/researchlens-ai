@@ -29,8 +29,7 @@ simply told the AI, as part of its instructions: *"After you finish your
 answer, add a short list — one line per paper/paragraph you drew from, with a short word-for-word quote proving it."* This is far easier than the alternative (trying to automatically match AI prose back to the source text after the fact), because the AI already knows what it based its answer on — we just have to ask it to tell us.
 
 **Decision 2 — Never trust the AI's quote blindly. Check it ourselves.**
-Asking the AI isn't enough — it could still misquote. So our own code takes that quote and literally searches for it inside the paper's real text. If the quote is found, we mark it ✅ **Verified**. If it isn't found exactly,
-we still show it (don't hide it — hiding looks like we're covering something
+Asking the AI isn't enough — it could still misquote. So our own code takes that quote and literally searches for it inside the paper's real text. If the quote is found, we mark it ✅ **Verified**. If it isn't found exactly, we still show it (don't hide it — hiding looks like we're covering something
 up) but we label it "not verified," so the reader knows to double-check it
 themselves.
 
