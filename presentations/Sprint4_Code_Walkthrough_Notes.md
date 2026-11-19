@@ -119,8 +119,7 @@ one function that both Sprint 4 multi-paper features share.
 
 ### 3.1 `count_projects_with_synthesis_for_user(session, user_id)`
 
-A one-line `COUNT` query (`ResearchProject.synthesis_text.isnot(None)`) that powers a
-dashboard stat card — swapped in to replace what used to be a hardcoded `0` placeholder
+A one-line `COUNT` query (`ResearchProject.synthesis_text.isnot(None)`) that powers a dashboard stat card — swapped in to replace what used to be a hardcoded `0` placeholder
 for an earlier, unbuilt "Research Gaps" feature idea.
 
 ### 3.2 `set_project_synthesis(session, project, text, paper_ids, evidence=None)`
