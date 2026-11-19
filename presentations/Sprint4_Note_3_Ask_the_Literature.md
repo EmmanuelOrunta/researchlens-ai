@@ -76,8 +76,7 @@ def generate():
             answer_message = add_chat_message(write_session, project_id, "assistant", event["text"], ...)
 ```
 
-**In plain words:** the very first thing this does — before the AI has even started "typing" an answer — is save the question to the database. Only after that does it start streaming the AI's answer back to the screen, and only once the AI is fully finished does it save the answer as its own separate message. This order matters: it's exactly like sending a text
-message — your message shows up and stays sent, whether or not the other
+**In plain words:** the very first thing this does — before the AI has even started "typing" an answer — is save the question to the database. Only after that does it start streaming the AI's answer back to the screen, and only once the AI is fully finished does it save the answer as its own separate message. This order matters: it's exactly like sending a text message — your message shows up and stays sent, whether or not the other
 person replies right away or at all.
 
 ### c) "Edit and resend" — rewinding the conversation cleanly
