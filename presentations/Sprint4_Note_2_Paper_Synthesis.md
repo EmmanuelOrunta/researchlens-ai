@@ -33,8 +33,7 @@ prompt.** Papers can be long. Sending five full papers to the AI every time woul
 
 **Decision 4 — Never trust which papers the user "selected" without
 checking.** The list of ticked checkboxes comes from the user's browser,
-which technically anyone could tamper with (for example, submitting a paper ID that belongs to someone else's project). So before generating anything, our server re-checks every submitted paper ID against that specific
-project's own saved papers, and throws away anything that doesn't belong.
+which technically anyone could tamper with (for example, submitting a paper ID that belongs to someone else's project). So before generating anything, our server re-checks every submitted paper ID against that specific project's own saved papers, and throws away anything that doesn't belong.
 
 **Decision 5 — Save the result with the exact list of papers it came from.**
 A synthesis is only useful if you can tell, later, which papers it's
