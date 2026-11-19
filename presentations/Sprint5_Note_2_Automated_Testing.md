@@ -139,8 +139,7 @@ def test_wrong_password_is_rejected(self):
 
 **In plain words:** `self.client.post("/login", data={...})` does exactly
 what a real person does — fills in the email and password fields and hits
-submit — except it's code doing it, instantly. `self.assertIn(...)` is the actual "check": it says *"I expect to find this exact text somewhere in the page that comes back — if it's not there, fail this test and tell me."* The first test proves a correct login actually lands you on the Dashboard. The second proves a wrong password shows the right error message instead of silently failing or showing something confusing. There's also a third test (not shown here) proving that an unknown email shows that *exact same*
-generic error — on purpose, so a login attempt can't be used to figure out
+submit — except it's code doing it, instantly. `self.assertIn(...)` is the actual "check": it says *"I expect to find this exact text somewhere in the page that comes back — if it's not there, fail this test and tell me."* The first test proves a correct login actually lands you on the Dashboard. The second proves a wrong password shows the right error message instead of silently failing or showing something confusing. There's also a third test (not shown here) proving that an unknown email shows that *exact same* generic error — on purpose, so a login attempt can't be used to figure out
 which email addresses even have an account on our app.
 
 ### c) Testing the AI safety net — the single most important file
