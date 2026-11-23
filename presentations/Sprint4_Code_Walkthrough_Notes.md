@@ -108,8 +108,7 @@ def build_synthesis_capsule(paper) -> str:
 ```
 
 **What it does:** a pure function (no database session parameter, no I/O) that reduces one `Paper` object down to a single descriptive string, trying the Matrix fields first,
-then the abstract, then a 2,000-character slice of extracted PDF text, then a plain
-"nothing available" fallback. **Who calls it:** both `synthesis_stream()` and
+then the abstract, then a 2,000-character slice of extracted PDF text, then a plain "nothing available" fallback. **Who calls it:** both `synthesis_stream()` and
 `ask_literature_stream()`/`resend_ask_literature_message()` in `papers_routes.py` — the
 one function that both Sprint 4 multi-paper features share.
 
