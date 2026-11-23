@@ -142,8 +142,7 @@ time anyone opens the page.
    (section 4a), numbered and combined into one prompt (section 4c).
 6. The AI writes its synthesis live, streaming word by word to the screen —
    plus its hidden evidence block (see the Evidence Tracking note).
-7. Once finished, the clean text, its evidence, and the exact paper IDs used
-   are all saved together (section 4e), so reopening the page later still
+7. Once finished, the clean text, its evidence, and the exact paper IDs used are all saved together (section 4e), so reopening the page later still
    shows this same synthesis and which papers it came from.
 
 ---
