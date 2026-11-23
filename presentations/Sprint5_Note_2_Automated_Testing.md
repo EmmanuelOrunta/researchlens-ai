@@ -168,8 +168,7 @@ function directly, with otherwise-perfectly-valid input, and checks that
 instead of hanging, crashing, or throwing a confusing technical error, it
 comes back with one clear message that actually mentions `OPENAI_API_KEY` —
 in other words, a message a non-technical user could read and understand
-("AI isn't set up") rather than a raw error dump. `tearDown()` then puts the
-real key back exactly as it was, every time, whether the test passed or
+("AI isn't set up") rather than a raw error dump. `tearDown()` then puts the real key back exactly as it was, every time, whether the test passed or
 failed, so this never permanently changes anything about the developer's
 own setup. This exact pattern is repeated for all five AI features
 (Summary, Relevance Analysis, Matrix extraction, Synthesis, Ask the
