@@ -96,8 +96,7 @@ def edit_and_truncate_message(session, project_id, message_id, new_content):
 
 **In plain words:** imagine the conversation as a numbered list of sticky
 notes again. This says: "delete every sticky note numbered *after* the one
-being edited" (its old answer, and anything asked afterward) — "then rewrite that one sticky note's text." The conversation now reads exactly as if the corrected question had been the real one from the start, with a brand-new
-answer generated right after it.
+being edited" (its old answer, and anything asked afterward) — "then rewrite that one sticky note's text." The conversation now reads exactly as if the corrected question had been the real one from the start, with a brand-new answer generated right after it.
 
 ### d) Keeping the question safe from being cut off, even in a long chat
 
