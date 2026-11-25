@@ -132,8 +132,7 @@ def set_project_synthesis(session, project, text, paper_ids, evidence=None):
     return project
 ```
 
-**What it does:** writes the synthesis text, re-encodes the ordered list of source
-paper ids as a comma-separated string, and stamps the generation time. Note the
+**What it does:** writes the synthesis text, re-encodes the ordered list of source paper ids as a comma-separated string, and stamps the generation time. Note the
 `evidence` parameter is Sprint 5 scope (evidence tracking didn't exist in Sprint 4) —
 Sprint 4's own calls pass nothing for it, so `synthesis_evidence` stays `NULL`. **Who
 calls it:** `synthesis_stream()`'s `generate()` closure, exactly once, when the stream's
