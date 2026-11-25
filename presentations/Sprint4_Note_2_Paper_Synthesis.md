@@ -152,10 +152,9 @@ time anyone opens the page.
 - It solves a real literature-review task — comparing papers, not just
   listing them — which is the part of a review that actually takes a human
   the longest.
-- Using short "index cards" instead of full paper text keeps it fast and
-  keeps the AI focused on what matters, rather than drowning in raw text.
+- Using short "index cards" instead of full paper text keeps it fast and keeps the AI focused on what matters, rather than drowning in raw text.
 - The security re-check (section 4d) means a user can never accidentally
-  (or deliberately) generate a synthesis using a paper that isn't really
+(or deliberately) generate a synthesis using a paper that isn't really
   theirs.
 - Saving the exact source paper list next to the result means a synthesis
   is never a "mystery" — anyone, including an instructor reviewing our
