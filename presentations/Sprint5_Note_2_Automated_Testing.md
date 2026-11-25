@@ -174,8 +174,7 @@ own setup. This exact pattern is repeated for all five AI features
 (Summary, Relevance Analysis, Matrix extraction, Synthesis, Ask the
 Literature) — 5 tests, one per feature.
 
-A second group in the same file checks the opposite situation — bad *input* rather than a missing key (an empty paper, no research question typed, too few papers for a synthesis) — and confirms each one is rejected politely,
-before the app would ever even try to contact OpenAI.
+A second group in the same file checks the opposite situation — bad *input* rather than a missing key (an empty paper, no research question typed, too few papers for a synthesis) — and confirms each one is rejected politely, before the app would ever even try to contact OpenAI.
 
 ### d) Testing the AI's honesty mechanism (Evidence Tracking)
 
