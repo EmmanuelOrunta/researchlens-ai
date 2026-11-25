@@ -21,8 +21,7 @@ These ideas repeat across all three features, so understanding them once pays of
 ### 2.1 Streaming responses (the "typing" effect)
 
 Every AI feature in this app — not just Sprint 4's — streams its answer back token by token rather than making the user wait for the whole response and then showing it all at once. This is implemented with OpenAI's **Responses API** in streaming mode
-(`client.responses.stream(...)`), consumed server-side as an iterator of events, and
-forwarded to the browser as **newline-delimited JSON (NDJSON)** — one JSON object per
+(`client.responses.stream(...)`), consumed server-side as an iterator of events, and forwarded to the browser as **newline-delimited JSON (NDJSON)** — one JSON object per
 line, each line a complete event:
 
 - `{"delta": "..."}` — one small chunk of generated text, as it's produced
