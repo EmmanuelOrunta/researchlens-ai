@@ -196,8 +196,7 @@ quote that only *looks* different because of a typing-style quirk (curly
 quotation marks vs. straight ones) doesn't get wrongly flagged just because
 of that. There are over 20 tests like this in the file, each checking one
 small, specific rule — a malformed line from the AI doesn't break the whole
-evidence block, an overlong quote gets safely shortened instead of rejected,
-a citation pointing at a paper that's since been deleted shows "no link"
+evidence block, an overlong quote gets safely shortened instead of rejected, a citation pointing at a paper that's since been deleted shows "no link"
 instead of crashing the page, and so on.
 
 ### e) Testing what happens with messy, real-world data
