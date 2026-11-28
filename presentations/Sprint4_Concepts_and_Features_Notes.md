@@ -26,8 +26,7 @@ line, each line a complete event:
 
 - `{"delta": "..."}` — one small chunk of generated text, as it's produced
 - `{"error": "..."}` — something went wrong; nothing should be saved to the database
-- `{"done": true, "text": "<full text>"}` — generation finished; this is the moment a
-  route persists the result
+- `{"done": true, "text": "<full text>"}` — generation finished; this is the moment a route persists the result
 
 The browser reads this with `fetch()` and a `ReadableStream` reader, appending each
 `delta` to the page as it arrives — the same mechanic that makes ChatGPT's own answers
