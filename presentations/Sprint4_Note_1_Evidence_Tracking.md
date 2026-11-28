@@ -32,8 +32,7 @@ answer, add a short list — one line per paper/paragraph you drew from, with a 
 Asking the AI isn't enough — it could still misquote. So our own code takes that quote and literally searches for it inside the paper's real text. If the quote is found, we mark it ✅ **Verified**. If it isn't found exactly, we still show it (don't hide it — hiding looks like we're covering something up) but we label it "not verified," so the reader knows to double-check it themselves.
 
 **Decision 3 — Keep the "receipt" block invisible to the reader, but strip
-it out cleanly.** The AI writes its answer live, word by word (like watching someone type). The evidence list has to come after the answer but should never actually flash on screen as part of the essay. So the block starts
-with a special marker that would never normally appear in regular writing,
+it out cleanly.** The AI writes its answer live, word by word (like watching someone type). The evidence list has to come after the answer but should never actually flash on screen as part of the essay. So the block starts with a special marker that would never normally appear in regular writing,
 and our code (and the on-screen typing effect) always cuts everything from
 that marker onward before displaying text.
 
